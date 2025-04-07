@@ -2,7 +2,6 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Message;
 
-namespace Client.Messages;
 
 public class Join : IMessage
 {
@@ -11,18 +10,18 @@ public class Join : IMessage
     public required string ChannelId { get; init; }
     public required string DisplayName { get; init; }
 
-    public string ToTcpString()
+    public static string ToTcpString(Join join)
     {
-        if (ChannelId.Length > 20 || DisplayName.Length > 20)
+        if (join.ChannelId.Length > 20 || join.DisplayName.Length > 20)
             throw new ArgumentException("ChannelId and DisplayName must be at most 20 characters.");
 
-        if (!Regex.IsMatch(ChannelId, @"^[a-zA-Z0-9_.-]+$"))
+        if (!Regex.IsMatch(join.ChannelId, @"^[a-zA-Z0-9_.-]+$"))
             throw new ArgumentException("ChannelId can contain only a-z, A-Z, 0-9, '-', '_' or '.'");
 
-        if (!Regex.IsMatch(DisplayName, @"^[\x20-\x7E]*$"))
+        if (!Regex.IsMatch(join.DisplayName, @"^[\x20-\x7E]*$"))
             throw new ArgumentException("DisplayName must contain only printable ASCII characters");
 
-        return $"JOIN {ChannelId} AS {DisplayName}\r\n";
+        return $"JOIN {join.ChannelId} AS {join.DisplayName}\r\n";
     }
 
     public byte[] ToBytes(ushort messageId)

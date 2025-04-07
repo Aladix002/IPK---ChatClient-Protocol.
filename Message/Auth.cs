@@ -12,18 +12,21 @@ public class Auth : ITcpMessage
     public required string DisplayName { get; init; }
     public required string Secret { get; init; }
 
-    private static readonly Regex UsernameRegex = new("^[a-zA-Z0-9_-]{1,20}$");
-    private static readonly Regex DisplayNameRegex = new("^[\x21-\x7E]{1,20}$");
-    private static readonly Regex SecretRegex = new("^[a-zA-Z0-9_-]{1,128}$");
+    private static readonly Regex ValidUsername = new("^[a-zA-Z0-9_-]{1,20}$", RegexOptions.Compiled);
+    private static readonly Regex ValidDisplayName = new(@"^[\x21-\x7E]{1,20}$", RegexOptions.Compiled);
+    private static readonly Regex ValidSecret = new("^[a-zA-Z0-9_-]{1,128}$", RegexOptions.Compiled);
+
+    private static void RequireMatch(string value, Regex regex, string name)
+    {
+        if (!regex.IsMatch(value))
+            throw new ArgumentException($"Invalid {name}");
+    }
 
     private void Validate()
     {
-        if (!UsernameRegex.IsMatch(Username))
-            throw new ArgumentException("Invalid Username");
-        if (!DisplayNameRegex.IsMatch(DisplayName))
-            throw new ArgumentException("Invalid DisplayName");
-        if (!SecretRegex.IsMatch(Secret))
-            throw new ArgumentException("Invalid Secret");
+        RequireMatch(Username, ValidUsername, nameof(Username));
+        RequireMatch(DisplayName, ValidDisplayName, nameof(DisplayName));
+        RequireMatch(Secret, ValidSecret, nameof(Secret));
     }
 
     public string ToTcpString()
@@ -36,30 +39,29 @@ public class Auth : ITcpMessage
     {
         Validate();
 
-        byte[] usernameBytes = Encoding.ASCII.GetBytes(Username);
-        byte[] displayNameBytes = Encoding.ASCII.GetBytes(DisplayName);
-        byte[] secretBytes = Encoding.ASCII.GetBytes(Secret);
-
         byte[] idBytes = BitConverter.GetBytes((ushort)IPAddress.HostToNetworkOrder((short)messageId));
+        byte[] username = Encoding.ASCII.GetBytes(Username);
+        byte[] display = Encoding.ASCII.GetBytes(DisplayName);
+        byte[] secret = Encoding.ASCII.GetBytes(Secret);
 
-        byte[] result = new byte[1 + 2 + usernameBytes.Length + 1 + displayNameBytes.Length + 1 + secretBytes.Length + 1];
-        result[0] = (byte)MessageType.AUTH;
-        result[1] = idBytes[0];
-        result[2] = idBytes[1];
+        byte[] result = new byte[1 + 2 + username.Length + 1 + display.Length + 1 + secret.Length + 1];
+        int offset = 0;
 
-        int offset = 3;
-        Array.Copy(usernameBytes, 0, result, offset, usernameBytes.Length);
-        offset += usernameBytes.Length;
-        result[offset++] = 0;
+        result[offset++] = (byte)MessageType;
+        result[offset++] = idBytes[0];
+        result[offset++] = idBytes[1];
 
-        Array.Copy(displayNameBytes, 0, result, offset, displayNameBytes.Length);
-        offset += displayNameBytes.Length;
-        result[offset++] = 0;
-
-        Array.Copy(secretBytes, 0, result, offset, secretBytes.Length);
-        offset += secretBytes.Length;
-        result[offset] = 0;
+        offset += CopyWithNullTerminator(username, result, offset);
+        offset += CopyWithNullTerminator(display, result, offset);
+        CopyWithNullTerminator(secret, result, offset);
 
         return result;
+    }
+
+    private static int CopyWithNullTerminator(byte[] source, byte[] destination, int offset)
+    {
+        Array.Copy(source, 0, destination, offset, source.Length);
+        destination[offset + source.Length] = 0;
+        return source.Length + 1;
     }
 }

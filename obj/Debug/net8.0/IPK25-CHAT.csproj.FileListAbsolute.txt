@@ -1,9 +1,3 @@
-/home/aladix/Desktop/FIT/ipk/ipk25/IPK25-CHAT/bin/Debug/net8.0/IPK25-CHAT
-/home/aladix/Desktop/FIT/ipk/ipk25/IPK25-CHAT/bin/Debug/net8.0/IPK25-CHAT.deps.json
-/home/aladix/Desktop/FIT/ipk/ipk25/IPK25-CHAT/bin/Debug/net8.0/IPK25-CHAT.runtimeconfig.json
-/home/aladix/Desktop/FIT/ipk/ipk25/IPK25-CHAT/bin/Debug/net8.0/IPK25-CHAT.dll
-/home/aladix/Desktop/FIT/ipk/ipk25/IPK25-CHAT/bin/Debug/net8.0/IPK25-CHAT.pdb
-/home/aladix/Desktop/FIT/ipk/ipk25/IPK25-CHAT/bin/Debug/net8.0/CommandLine.dll
 /home/aladix/Desktop/FIT/ipk/ipk25/IPK25-CHAT/obj/Debug/net8.0/IPK25-CHAT.csproj.AssemblyReference.cache
 /home/aladix/Desktop/FIT/ipk/ipk25/IPK25-CHAT/obj/Debug/net8.0/IPK25-CHAT.GeneratedMSBuildEditorConfig.editorconfig
 /home/aladix/Desktop/FIT/ipk/ipk25/IPK25-CHAT/obj/Debug/net8.0/IPK25-CHAT.AssemblyInfoInputs.cache
@@ -15,3 +9,9 @@
 /home/aladix/Desktop/FIT/ipk/ipk25/IPK25-CHAT/obj/Debug/net8.0/IPK25-CHAT.pdb
 /home/aladix/Desktop/FIT/ipk/ipk25/IPK25-CHAT/obj/Debug/net8.0/IPK25-CHAT.genruntimeconfig.cache
 /home/aladix/Desktop/FIT/ipk/ipk25/IPK25-CHAT/obj/Debug/net8.0/ref/IPK25-CHAT.dll
+/home/aladix/Desktop/FIT/ipk/ipk25/IPK25-CHAT/bin/IPK25-CHAT
+/home/aladix/Desktop/FIT/ipk/ipk25/IPK25-CHAT/bin/IPK25-CHAT.deps.json
+/home/aladix/Desktop/FIT/ipk/ipk25/IPK25-CHAT/bin/IPK25-CHAT.runtimeconfig.json
+/home/aladix/Desktop/FIT/ipk/ipk25/IPK25-CHAT/bin/IPK25-CHAT.dll
+/home/aladix/Desktop/FIT/ipk/ipk25/IPK25-CHAT/bin/IPK25-CHAT.pdb
+/home/aladix/Desktop/FIT/ipk/ipk25/IPK25-CHAT/bin/CommandLine.dll

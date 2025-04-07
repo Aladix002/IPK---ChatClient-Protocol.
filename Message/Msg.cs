@@ -11,7 +11,9 @@ public class Msg: IMessage
     public static string ToTcpString(Msg msg)
     {
         Exception ex = new Exception("Wrong input data");
-        // Check the length of the channel identifier and channel name
+        if (string.IsNullOrEmpty(msg.DisplayName) || string.IsNullOrEmpty(msg.MessageContents))
+            throw new ArgumentException("DisplayName or MessageContents cannot be null or empty.");
+
         if (msg.DisplayName.Length > 20 || msg.MessageContents.Length> 1400)
         {
             throw new ArgumentException("MessageContents and Display Name cannot exceed 20 characters in length.");
@@ -22,7 +24,6 @@ public class Msg: IMessage
         string pattern = @"^[\x20-\x7E\s]*$";
         if (!Regex.IsMatch(msg.MessageContents, pattern))
             throw ex;
-        // Build a string in the format "JOIN SP ID SP AS SP DNAME \r\n".
         return string.Format("MSG FROM {0} IS {1}\r\n", msg.DisplayName, msg.MessageContents);
     }
     
@@ -58,6 +59,9 @@ public class Msg: IMessage
     
     public byte[] ToBytes(ushort id)
     {
+        if (DisplayName is null || MessageContents is null)
+            throw new InvalidOperationException("DisplayName and MessageContents must not be null");
+
         byte[] displayNameBytes = Encoding.UTF8.GetBytes(DisplayName);
         byte[] messageContentsBytes = Encoding.UTF8.GetBytes(MessageContents);
 

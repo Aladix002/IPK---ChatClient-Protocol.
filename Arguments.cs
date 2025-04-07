@@ -16,4 +16,6 @@ public record Arguments
 
     [Option('r', Default = 3, HelpText = "UDP max retries")]
     public int MaxRetries { get; init; }
+
+    
 }

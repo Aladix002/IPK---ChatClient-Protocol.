@@ -52,9 +52,8 @@ public class Reply : IMessage
         };
     }
 
-    public static Reply FromTcpString(string response)
+    public static Reply FromTcpString(string[] words)
     {
-        var words = response.Trim().Split(' ', 4);
         if (words.Length != 4 || words[0] != "REPLY")
             throw new ArgumentException("Invalid REPLY format");
 
@@ -75,7 +74,7 @@ public class Reply : IMessage
         return new Reply
         {
             Result = result,
-            RefMessageId = 0, // TCP neobsahuje RefMessageId
+            RefMessageId = 0, 
             MessageContent = content
         };
     }

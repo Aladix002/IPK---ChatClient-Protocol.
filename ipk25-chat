@@ -1,0 +1,2 @@
+dotnet bin/IPK25-CHAT.dll "$@"
+dotnet bin/IPK25-CHAT.dll "$@"
