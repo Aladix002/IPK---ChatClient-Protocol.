@@ -16,4 +16,3 @@ static int RunClient(Arguments opts)
 
     return 0;
 }
-
