@@ -5,10 +5,9 @@ using Message;
 
 public class Tcp
 {
-    private enum SessionState { start, auth, open, error, end}
 
     private static readonly Mutex _stateLock = new();
-    private static SessionState _sessionState = SessionState.start;
+    private static State _State = State.start;
 
     private static readonly Mutex _responseLock = new();
     private static int _lastReplyStatus = -1;
@@ -52,7 +51,7 @@ public class Tcp
             if (tokens.Length == 0) continue;
 
             _stateLock.WaitOne();
-            var currentState = _sessionState;
+            var currentState = _State;
             _stateLock.ReleaseMutex();
 
             switch (tokens[0])
@@ -61,21 +60,21 @@ public class Tcp
                     TcpCommandHandler.HandleHelp();
                     break;
 
-                case "/auth" when currentState == SessionState.start || currentState == SessionState.auth:
+                case "/auth" when currentState == State.start || currentState == State.auth:
                     bool isAuthenticated = await TcpCommandHandler.HandleAuth(tokens, stream, name => _userDisplayName = name);
                     if (isAuthenticated)
                     {
                         _stateLock.WaitOne();
-                        _sessionState = SessionState.auth;
+                        _State = State.auth;
                         _stateLock.ReleaseMutex();
                     }
                     break;
 
-                case "/join" when currentState == SessionState.open:
+                case "/join" when currentState == State.open:
                     await TcpCommandHandler.HandleJoin(tokens, _userDisplayName, stream);
                     break;
 
-                case "/rename" when currentState == SessionState.open:
+                case "/rename" when currentState == State.open:
                     TcpCommandHandler.HandleRename(tokens, ref _userDisplayName);
                     break;
 
@@ -84,7 +83,7 @@ public class Tcp
                     {
                         Console.Error.WriteLine("ERR: Unknown or disallowed command");
                     }
-                    else if (currentState == SessionState.open)
+                    else if (currentState == State.open)
                     {
                         await TcpCommandHandler.HandleMessage(input, _userDisplayName, stream);
                     }
@@ -157,7 +156,7 @@ public class Tcp
             if (_lastReplyStatus == 1)
             {
                 _stateLock.WaitOne();
-                _sessionState = SessionState.open;
+                _State = State.open;
                 _stateLock.ReleaseMutex();
             }
         }

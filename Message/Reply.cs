@@ -15,18 +15,15 @@ public class Reply : IMessage
     public byte[] ToBytes(ushort messageId)
     {
         byte[] contentBytes = Encoding.ASCII.GetBytes(MessageContent);
-        ushort netId = BinaryPrimitives.ReverseEndianness(messageId);
-        ushort netRefId = BinaryPrimitives.ReverseEndianness(RefMessageId);
-
         byte[] result = new byte[1 + 2 + 1 + 2 + contentBytes.Length + 1];
+
         result[0] = (byte)MessageType.REPLY;
-        result[1] = (byte)(netId >> 8);
-        result[2] = (byte)(netId & 0xFF);
+        BinaryPrimitives.WriteUInt16BigEndian(result.AsSpan(1, 2), messageId);
         result[3] = (byte)(Result ? 1 : 0);
-        result[4] = (byte)(netRefId >> 8);
-        result[5] = (byte)(netRefId & 0xFF);
-        Array.Copy(contentBytes, 0, result, 6, contentBytes.Length);
+        BinaryPrimitives.WriteUInt16BigEndian(result.AsSpan(4, 2), RefMessageId);
+        contentBytes.CopyTo(result.AsSpan(6));
         result[^1] = 0;
+
         return result;
     }
 
