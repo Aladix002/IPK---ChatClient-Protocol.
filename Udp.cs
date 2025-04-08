@@ -18,15 +18,6 @@ public class Udp
     private static string? _displayName;
     public static ushort id = 0;
 
-    public enum State
-    {
-        start,
-        auth,
-        open,
-        error,
-        end
-    }
-
     public static async Task RunClientSession(Arguments options, IPAddress ip)
     {
         using var udpClient = new UdpClient(new IPEndPoint(IPAddress.Any, 0));
