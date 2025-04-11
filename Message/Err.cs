@@ -7,6 +7,7 @@ namespace Message;
 public class Err : IMessage
 {
     public MessageType MessageType => MessageType.ERR;
+    public ushort MessageId { get; set; }  // <-- pridane
     public required string DisplayName { get; init; }
     public required string MessageContents { get; init; }
 
@@ -37,6 +38,7 @@ public class Err : IMessage
 
     public byte[] ToBytes(ushort id)
     {
+        MessageId = id; // <- uloženie ID
         var nameBytes = Encoding.UTF8.GetBytes(DisplayName);
         var contentBytes = Encoding.UTF8.GetBytes(MessageContents);
         var result = new byte[1 + 2 + nameBytes.Length + 1 + contentBytes.Length + 1];
@@ -61,7 +63,9 @@ public class Err : IMessage
         if (data.Length < 4 || data[0] != (byte)MessageType.ERR)
             throw new ArgumentException("Invalid ERR byte data.");
 
+        var id = BinaryPrimitives.ReadUInt16BigEndian(data.Slice(1, 2));
         int offset = 3;
+
         int nameEnd = data.Slice(offset).IndexOf((byte)0);
         if (nameEnd == -1) throw new ArgumentException("Missing null terminator after DisplayName.");
 
@@ -75,8 +79,10 @@ public class Err : IMessage
 
         return new Err
         {
+            MessageId = id,
             DisplayName = displayName,
             MessageContents = message
         };
     }
 }
+

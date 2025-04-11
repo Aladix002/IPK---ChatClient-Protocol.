@@ -1,194 +1,181 @@
 using System;
 using System.Net;
 using System.Net.Sockets;
-using Message;
+using System.Text;
 using System.Threading;
+using Message;
+using Command;
 
 public class Udp
 {
-    private static Mutex _mutexSate = new();
+    private static Mutex _stateLock = new();
     private static State _state = State.start;
 
-    private static Queue<Confirm> _confirmList = new();
-    private static Queue<Reply> _replyList = new();
+    private static Mutex _confirmLock = new();
+    private static Queue<Confirm> _confirmQueue = new();
 
-    private static Mutex _mutexConfirm = new();
-    private static Mutex _mutexReply = new();
+    private static Mutex _replyLock = new();
+    private static Queue<Reply> _replyQueue = new();
 
     private static string? _displayName;
     public static ushort id = 0;
 
     public static async Task RunClientSession(Arguments options, IPAddress ip)
     {
-        using var udpClient = new UdpClient(new IPEndPoint(IPAddress.Any, 0));
+        var client = new UdpClient();
         var serverEP = new IPEndPoint(ip, options.Port);
+        var clientEP = new IPEndPoint(IPAddress.Any, 0);
+        client.Client.Bind(clientEP);
 
-        var commandHandler = new UdpCommandHandler(
-            udpClient,
-            serverEP,
-            options,
-            () => WaitReply(options),
-            (bytes) => SendMessageAsync(bytes, udpClient, serverEP, options),
-            () => SendBye(udpClient, serverEP, options)
-        );
+        var receiveTask = ReceiveMessages(client, serverEP);
+        var sendTask = HandleUserInput(client, serverEP, options);
 
-        Console.CancelKeyPress += async (sender, e) =>
+        await Task.WhenAny(receiveTask, sendTask);
+    }
+
+    private static async Task HandleUserInput(UdpClient client, IPEndPoint serverEP, Arguments options)
+    {
+        Console.CancelKeyPress += async (_, e) =>
         {
-            await SendBye(udpClient, serverEP, options);
-            udpClient.Close();
+            e.Cancel = true;
+            await SendBye(client, serverEP, options);
             Environment.Exit(0);
         };
 
-        var receiver = Task.Run(() => ReceiveMessage(udpClient, serverEP, options));
-        var reader = Task.Run(() => ReadInput(commandHandler));
+        var handler = new UdpCommandHandler(
+            client,
+            serverEP,
+            options,
+            WaitReply,
+            bytes => SendMessageAsync(bytes, client, serverEP, options),
+            () => SendBye(client, serverEP, options)
+        );
 
-        await Task.WhenAny(receiver, reader);
-    }
-
-    private static async Task<IPEndPoint> ReceiveMessage(UdpClient client, IPEndPoint serverEP, Arguments options)
-    {
-        try
+        while (true)
         {
-            while (true)
+            var input = Console.ReadLine();
+            if (string.IsNullOrWhiteSpace(input)) continue;
+
+            var tokens = input.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (tokens.Length == 0) continue;
+
+            _stateLock.WaitOne();
+            var currentState = _state;
+            _stateLock.ReleaseMutex();
+
+            switch (tokens[0])
             {
-                var result = await client.ReceiveAsync();
+                case "/help":
+                    TcpCommandHandler.HandleHelp();
+                    break;
 
-                _mutexSate.WaitOne();
-                var currentState = _state;
-                _mutexSate.ReleaseMutex();
+                case "/auth" when currentState == State.start || currentState == State.auth:
+                    {
+                        bool success = await handler.HandleAuth(tokens, name =>
+                        {
+                            _displayName = name;
+                            _stateLock.WaitOne();
+                            _state = State.auth;
+                            _stateLock.ReleaseMutex();
+                        });
 
-                if (currentState == State.start)
-                    continue;
-
-                if ((result.RemoteEndPoint.Port != serverEP.Port) && currentState == State.auth)
-                    serverEP = result.RemoteEndPoint;
-
-                switch ((MessageType)result.Buffer[0])
-                {
-                    case MessageType.CONFIRM:
-                        _mutexConfirm.WaitOne();
-                        _confirmList.Enqueue(Confirm.FromBytes(result.Buffer));
-                        _mutexConfirm.ReleaseMutex();
+                        if (success)
+                        {
+                            _stateLock.WaitOne();
+                            _state = State.open;
+                            _stateLock.ReleaseMutex();
+                        }
                         break;
+                    }
 
-                    case MessageType.REPLY:
-                        _ = SendConfirm(result.Buffer, client, serverEP);
-                        var reply = Reply.FromBytes(result.Buffer);
-                        Console.Error.WriteLine(reply.Result ? $"Success: {reply.MessageContent}" : $"Failure: {reply.MessageContent}");
+                case "/join" when currentState == State.open:
+                    await handler.HandleJoin(tokens, _displayName);
+                    break;
 
-                        _mutexReply.WaitOne();
-                        _replyList.Enqueue(reply);
-                        _mutexReply.ReleaseMutex();
-                        break;
+                case "/rename" when currentState == State.open:
+                    handler.HandleRename(tokens, ref _displayName);
+                    break;
 
-                    case MessageType.ERR:
-                        _ = SendConfirm(result.Buffer, client, serverEP);
-                        var err = Err.FromBytes(result.Buffer);
-                        Console.Error.WriteLine($"ERR FROM {err.DisplayName}: {err.MessageContents}");
-                        await SendBye(client, serverEP, options);
-                        Environment.Exit(0);
-                        return serverEP;;
-
-                    case MessageType.MSG:
-                        _ = SendConfirm(result.Buffer, client, serverEP);
-                        var msg = Msg.FromBytes(result.Buffer);
-                        Console.WriteLine($"{msg.DisplayName}: {msg.MessageContents}");
-                        break;
-
-                    case MessageType.BYE:
-                        _ = SendConfirm(result.Buffer, client, serverEP);
-                        Environment.Exit(0);
-                        return serverEP;;
-
-                    default:
-                        Console.WriteLine("ERR: wrong data from server");
-                        await SendBye(client, serverEP, options);
-                        Environment.Exit(0);
-                        return serverEP;;
-                }
+                default:
+                    if (tokens[0].StartsWith("/"))
+                        Console.Error.WriteLine("ERR: Unknown or disallowed command");
+                    else if (currentState == State.open)
+                        await handler.HandleMessage(input, _displayName);
+                    else
+                        Console.Error.WriteLine("ERR: You must be authenticated first");
+                    break;
             }
         }
-        catch (ArgumentException)
-        {
-            Console.WriteLine("ERR: ArgumentException");
-            throw;
-        }
     }
 
-    private static async Task ReadInput(UdpCommandHandler handler)
+    private static async Task ReceiveMessages(UdpClient client, IPEndPoint serverEP)
     {
         while (true)
         {
-            string? input = Console.ReadLine();
-            if (string.IsNullOrWhiteSpace(input)) continue;
+            var result = await client.ReceiveAsync();
+            var data = result.Buffer;
 
-            string[] words = input.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            if (words.Length == 0) continue;
-
-            _mutexSate.WaitOne();
-            var state = _state;
-            _mutexSate.ReleaseMutex();
-
-            if (words[0] == "/help")
+            switch ((MessageType)data[0])
             {
-                TcpCommandHandler.HandleHelp(); // reused for printing
-                continue;
-            }
-
-            switch (state)
-            {
-                case State.start:
-                case State.auth:
-                    if (words[0] == "/auth")
-                    {
-                        _mutexSate.WaitOne();
-                        _state = State.auth;
-                        _mutexSate.ReleaseMutex();
-
-                        bool success = await handler.HandleAuth(words, name => _displayName = name);
-                        if (success)
-                        {
-                            _mutexSate.WaitOne();
-                            _state = State.open;
-                            _mutexSate.ReleaseMutex();
-                        }
-                    }
-                    else Console.Error.WriteLine("ERR: You must authenticate first.");
+                case MessageType.CONFIRM:
+                    _confirmLock.WaitOne();
+                    _confirmQueue.Enqueue(Confirm.FromBytes(data));
+                    _confirmLock.ReleaseMutex();
                     break;
 
-                case State.open:
-                    if (words[0] == "/join")
-                        await handler.HandleJoin(words, _displayName);
-                    else if (words[0] == "/rename")
-                        handler.HandleRename(words, ref _displayName);
-                    else if (words[0].StartsWith("/"))
-                        Console.Error.WriteLine("ERR: Unknown command.");
-                    else
-                        await handler.HandleMessage(input, _displayName);
+                case MessageType.REPLY:
+                    var reply = Reply.FromBytes(data);
+                    await SendConfirm(reply.RefMessageId, client, serverEP);
+                    Console.WriteLine(reply.Result ? $"Success: {reply.MessageContent}" : $"Failure: {reply.MessageContent}");
+
+                    _replyLock.WaitOne();
+                    _replyQueue.Enqueue(reply);
+                    _replyLock.ReleaseMutex();
+                    break;
+
+                case MessageType.MSG:
+                    var msg = Msg.FromBytes(data);
+                    Console.WriteLine($"{msg.DisplayName}: {msg.MessageContents}");
+                    await SendConfirm(msg.MessageId, client, serverEP);
+                    break;
+
+                case MessageType.ERR:
+                    var err = Err.FromBytes(data);
+                    Console.Error.WriteLine($"ERR FROM {err.DisplayName}: {err.MessageContents}");
+                    await SendConfirm(err.MessageId, client, serverEP);
+                    await SendBye(client, serverEP, new Arguments());
+                    Environment.Exit(0);
+                    break;
+
+                case MessageType.BYE:
+                    await SendConfirm(BitConverter.ToUInt16(data, 1), client, serverEP);
+                    client.Close();
+                    Environment.Exit(0);
                     break;
             }
         }
     }
 
-    private static async Task<int> SendMessageAsync(byte[] message, UdpClient client, IPEndPoint ep, Arguments options)
+    private static async Task<int> SendMessageAsync(byte[] data, UdpClient client, IPEndPoint ep, Arguments opt)
     {
-        await client.SendAsync(message, message.Length, ep);
+        await client.SendAsync(data, data.Length, ep);
 
-        for (int i = 0; i < options.MaxRetries; i++)
+        for (int i = 0; i < opt.MaxRetries; i++)
         {
-            Thread.Sleep(options.UdpTimeout);
-            _mutexConfirm.WaitOne();
-            while (_confirmList.Count > 0)
+            Thread.Sleep(opt.UdpTimeout);
+
+            _confirmLock.WaitOne();
+            while (_confirmQueue.Count > 0)
             {
-                var confirm = _confirmList.Dequeue();
-                if (confirm.RefMessageId == BitConverter.ToUInt16(message, 1))
+                var confirm = _confirmQueue.Dequeue();
+                if (confirm.RefMessageId == BitConverter.ToUInt16(data, 1))
                 {
-                    _mutexConfirm.ReleaseMutex();
+                    _confirmLock.ReleaseMutex();
                     id++;
                     return 1;
                 }
             }
-            _mutexConfirm.ReleaseMutex();
+            _confirmLock.ReleaseMutex();
         }
 
         id++;
@@ -196,48 +183,44 @@ public class Udp
         return 0;
     }
 
-    private static async Task SendConfirm(byte[] message, UdpClient client, IPEndPoint ep)
+    private static async Task<int> WaitReply()
     {
-        var confirm = new Confirm
+        for (int i = 0; i < 10; i++)
         {
-            RefMessageId = BitConverter.ToUInt16(message, 1)
-        };
+            await Task.Delay(100);
 
-        byte[] data = confirm.ToBytes(id);
-        await client.SendAsync(data, data.Length, ep);
-    }
-
-    private static async Task SendBye(UdpClient client, IPEndPoint ep, Arguments options)
-    {
-        _mutexSate.WaitOne();
-        _state = State.end;
-        _mutexSate.ReleaseMutex();
-        var bye = new Bye();
-        await SendMessageAsync(bye.ToBytes(id), client, ep, options);
-    }
-
-    private static async Task<int> WaitReply(Arguments options)
-    {
-        for (int i = 0; i < options.MaxRetries; i++)
-        {
-            await Task.Delay(options.UdpTimeout);
-            _mutexReply.WaitOne();
-            while (_replyList.Count > 0)
+            _replyLock.WaitOne();
+            if (_replyQueue.Count > 0)
             {
-                var reply = _replyList.Dequeue();
-                if (reply.RefMessageId == (id - 1))
-                {
-                    _mutexReply.ReleaseMutex();
-                    return reply.Result ? 1 : 0;
-                }
+                var reply = _replyQueue.Dequeue();
+                _replyLock.ReleaseMutex();
+                return reply.Result ? 1 : 0;
             }
-            _mutexReply.ReleaseMutex();
+            _replyLock.ReleaseMutex();
         }
 
-        Console.Error.WriteLine("ERR: no reply");
+        Console.Error.WriteLine("ERR: No reply");
         return -1;
     }
+
+    private static async Task SendConfirm(ushort refId, UdpClient client, IPEndPoint ep)
+    {
+        var confirm = new Confirm { RefMessageId = refId };
+        var bytes = confirm.ToBytes(id);
+        await client.SendAsync(bytes, bytes.Length, ep);
+    }
+
+    private static async Task SendBye(UdpClient client, IPEndPoint ep, Arguments opt)
+    {
+        _stateLock.WaitOne();
+        _state = State.end;
+        _stateLock.ReleaseMutex();
+
+        var bye = new Bye();
+        await SendMessageAsync(bye.ToBytes(id), client, ep, opt);
+    }
 }
+
 
 
 

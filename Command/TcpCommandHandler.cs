@@ -1,88 +1,62 @@
+using System.Net.Sockets;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Net.Sockets;
 using Message;
 
+
+namespace Command;
 public static class TcpCommandHandler
 {
     public static async Task<bool> HandleAuth(string[] words, NetworkStream stream, Action<string> setDisplayName)
     {
         if (words.Length != 4)
         {
-            Console.Error.WriteLine("ERR: Wrong input, expected /auth <username> <secret> <displayName>");
+            Console.Error.WriteLine("ERR: Usage: /auth <username> <secret> <displayName>");
             return false;
         }
 
-        try
+        var auth = new Auth
         {
-            var auth = new Auth
-            {
-                Username = words[1],
-                Secret = words[2],
-                DisplayName = words[3]
-            };
-            setDisplayName(words[3]);
-            var data = Encoding.ASCII.GetBytes(auth.ToTcpString());
-            await stream.WriteAsync(data);
-            return true;
-        }
-        catch (Exception e)
-        {
-            Console.WriteLine($"ERR: {e.Message}");
-            return false;
-        }
+            Username = words[1],
+            Secret = words[2],
+            DisplayName = words[3]
+        };
+
+        setDisplayName(auth.DisplayName);
+        byte[] data = Encoding.ASCII.GetBytes(auth.ToTcpString());
+        await stream.WriteAsync(data);
+        return true;
     }
 
-    public static async Task<bool> HandleJoin(string[] words, string? displayName, NetworkStream stream)
+    public static async Task HandleJoin(string[] words, string? displayName, NetworkStream stream)
     {
         if (displayName == null)
         {
-            Console.Error.WriteLine("ERR: You must authenticate first.");
-            return false;
+            Console.Error.WriteLine("ERR: Authenticate first");
+            return;
         }
 
         if (words.Length != 2)
         {
-            Console.Error.WriteLine("ERR: Wrong input, expected /join <channelId>");
-            return false;
+            Console.Error.WriteLine("ERR: Usage: /join <channelId>");
+            return;
         }
 
-        try
-        {
-            var join = new Join
-            {
-                ChannelId = words[1],
-                DisplayName = displayName
-            };
-            var data = Encoding.ASCII.GetBytes(Join.ToTcpString(join));
-            await stream.WriteAsync(data);
-            return true;
-        }
-        catch (Exception e)
-        {
-            Console.WriteLine($"ERR: {e.Message}");
-            return false;
-        }
+        var join = new Join { ChannelId = words[1], DisplayName = displayName };
+        byte[] data = Encoding.ASCII.GetBytes(Join.ToTcpString(join));
+        await stream.WriteAsync(data);
     }
 
-    public static bool HandleRename(string[] words, ref string? displayName)
+    public static void HandleRename(string[] words, ref string? displayName)
     {
-        if (words.Length != 2)
+        if (words.Length != 2 || words[1].Length > 20 || !Regex.IsMatch(words[1], @"^[\x20-\x7E]*$"))
         {
-            Console.Error.WriteLine("ERR: Wrong input, expected /rename <displayName>");
-            return false;
+            Console.Error.WriteLine("ERR: Invalid display name");
+            return;
         }
 
-        var name = words[1];
-        if (name.Length > 20 || !Regex.IsMatch(name, @"^[\x20-\x7E]*$"))
-        {
-            Console.Error.WriteLine("ERR: Invalid display name format");
-            return false;
-        }
-
-        displayName = name;
+        displayName = words[1];
         Console.WriteLine($"Renamed to {displayName}");
-        return true;
     }
 
     public static void HandleHelp()
@@ -98,19 +72,19 @@ public static class TcpCommandHandler
     {
         if (string.IsNullOrEmpty(displayName))
         {
-            Console.Error.WriteLine("ERR: You must authenticate before sending messages");
+            Console.Error.WriteLine("ERR: Authenticate first");
             return;
         }
 
-        try
+        if (input.Length > 1400)
         {
-            var msg = new Msg { DisplayName = displayName, MessageContents = input };
-            var data = Encoding.ASCII.GetBytes(Msg.ToTcpString(msg));
-            await stream.WriteAsync(data);
+            Console.Error.WriteLine("ERR: Message too long");
+            return;
         }
-        catch (Exception e)
-        {
-            Console.Error.WriteLine($"ERR: {e.Message}");
-        }
+
+        var msg = new Msg { DisplayName = displayName, MessageContents = input };
+        byte[] data = Encoding.ASCII.GetBytes(Msg.ToTcpString(msg));
+        await stream.WriteAsync(data);
     }
 }
+

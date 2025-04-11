@@ -1,27 +1,28 @@
-using System.Text.RegularExpressions;
+using System;
+using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using System.Threading;
 using Message;
+using Command;
 
 public class Tcp
 {
-
     private static readonly Mutex _stateLock = new();
     private static State _State = State.start;
-
-    private static readonly Mutex _responseLock = new();
-    private static int _lastReplyStatus = -1;
 
     private static string? _userDisplayName;
 
     public static async Task RunClientSession(Arguments args)
     {
-        using var client = new TcpClient();
+        var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+
         try
         {
-            client.Connect(args.Ip, args.Port);
-            var receiver = ListenForServerMessages(client);
-            var sender = HandleUserInput(client);
+            socket.Connect(args.Ip, args.Port);
+
+            var receiver = ListenForServerMessages(socket);
+            var sender = HandleUserInput(socket);
             await Task.WhenAll(receiver, sender);
         }
         catch (Exception ex)
@@ -30,15 +31,13 @@ public class Tcp
         }
     }
 
-    private static async Task HandleUserInput(TcpClient client)
+    private static async Task HandleUserInput(Socket socket)
     {
-        var stream = client.GetStream();
-
         Console.CancelKeyPress += async (_, e) =>
         {
             e.Cancel = true;
-            await SendDisconnectNotice(client);
-            client.Close();
+            await SendDisconnectNotice(socket);
+            socket.Close();
             Environment.Exit(0);
         };
 
@@ -54,6 +53,8 @@ public class Tcp
             var currentState = _State;
             _stateLock.ReleaseMutex();
 
+            using var stream = new NetworkStream(socket);
+
             switch (tokens[0])
             {
                 case "/help":
@@ -61,14 +62,16 @@ public class Tcp
                     break;
 
                 case "/auth" when currentState == State.start || currentState == State.auth:
-                    bool isAuthenticated = await TcpCommandHandler.HandleAuth(tokens, stream, name => _userDisplayName = name);
-                    if (isAuthenticated)
                     {
-                        _stateLock.WaitOne();
-                        _State = State.auth;
-                        _stateLock.ReleaseMutex();
+                        bool ok = await TcpCommandHandler.HandleAuth(tokens, stream, name => _userDisplayName = name);
+                        if (ok)
+                        {
+                            _stateLock.WaitOne();
+                            _State = State.auth;
+                            _stateLock.ReleaseMutex();
+                        }
+                        break;
                     }
-                    break;
 
                 case "/join" when currentState == State.open:
                     await TcpCommandHandler.HandleJoin(tokens, _userDisplayName, stream);
@@ -96,20 +99,19 @@ public class Tcp
         }
     }
 
-    private static async Task SendDisconnectNotice(TcpClient client)
+    private static async Task SendDisconnectNotice(Socket socket)
     {
-        var message = Encoding.UTF8.GetBytes("BYE\r\n");
-        await client.GetStream().WriteAsync(message);
+        byte[] message = Encoding.UTF8.GetBytes("BYE\r\n");
+        await socket.SendAsync(message, SocketFlags.None);
     }
 
-    private static async Task ListenForServerMessages(TcpClient client)
+    private static async Task ListenForServerMessages(Socket socket)
     {
-        var stream = client.GetStream();
         var buffer = new byte[2048];
 
         while (true)
         {
-            int byteCount = await stream.ReadAsync(buffer);
+            int byteCount = await socket.ReceiveAsync(buffer, SocketFlags.None);
             if (byteCount == 0) break;
 
             var responseText = Encoding.UTF8.GetString(buffer, 0, byteCount);
@@ -123,16 +125,16 @@ public class Tcp
                 }
                 else if (line.StartsWith("MSG"))
                 {
-                    DisplayIncomingMessage(line);
+                    DisplayMessage(line);
                 }
                 else if (line.StartsWith("ERR"))
                 {
-                    HandleServerError(line, client);
+                    HandleServerError(line, socket);
                     return;
                 }
                 else if (line.StartsWith("BYE"))
                 {
-                    client.Close();
+                    socket.Close();
                     Environment.Exit(0);
                 }
             }
@@ -146,14 +148,11 @@ public class Tcp
             var parts = line.Split(' ', 4);
             var reply = Reply.FromTcpString(parts);
 
-            _responseLock.WaitOne();
-            _lastReplyStatus = reply.Result ? 1 : 0;
             Console.WriteLine(reply.Result
                 ? $"Success: {reply.MessageContent}"
                 : $"Failure: {reply.MessageContent}");
-            _responseLock.ReleaseMutex();
 
-            if (_lastReplyStatus == 1)
+            if (reply.Result)
             {
                 _stateLock.WaitOne();
                 _State = State.open;
@@ -166,7 +165,7 @@ public class Tcp
         }
     }
 
-    private static void DisplayIncomingMessage(string line)
+    private static void DisplayMessage(string line)
     {
         var parts = line.Split(" IS ", 2);
         var sender = parts[0].Substring("MSG FROM ".Length);
@@ -174,15 +173,16 @@ public class Tcp
         Console.WriteLine($"{sender}: {message}");
     }
 
-    private static void HandleServerError(string line, TcpClient client)
+    private static void HandleServerError(string line, Socket socket)
     {
         var parts = line.Split(" IS ", 2);
         var sender = parts[0].Substring("ERR FROM ".Length);
         var error = parts[1];
-        Console.Error.WriteLine($" ERROR FROM {sender}: {error}");
+        Console.Error.WriteLine($"ERROR FROM {sender}: {error}");
 
-        _ = SendDisconnectNotice(client);
-        client.Close();
+        _ = SendDisconnectNotice(socket);
+        socket.Close();
         Environment.Exit(0);
     }
 }
+

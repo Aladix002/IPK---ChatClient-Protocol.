@@ -2,118 +2,105 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Message;
 
-public class Msg: IMessage
+public class Msg : IMessage
 {
     public MessageType MessageType { get; set; } = MessageType.MSG;
-    public string? DisplayName { get; set; } 
-    public  string? MessageContents { get; set; } 
-    
+    public ushort MessageId { get; set; }  // <- DOPLNENÉ
+    public string? DisplayName { get; set; }
+    public string? MessageContents { get; set; }
+
     public static string ToTcpString(Msg msg)
     {
-        Exception ex = new Exception("Wrong input data");
         if (string.IsNullOrEmpty(msg.DisplayName) || string.IsNullOrEmpty(msg.MessageContents))
             throw new ArgumentException("DisplayName or MessageContents cannot be null or empty.");
 
-        if (msg.DisplayName.Length > 20 || msg.MessageContents.Length> 1400)
-        {
-            throw new ArgumentException("MessageContents and Display Name cannot exceed 20 characters in length.");
-        }
+        if (msg.DisplayName.Length > 20 || msg.MessageContents.Length > 1400)
+            throw new ArgumentException("Display name or message too long.");
+
         string patternDname = @"^[\x20-\x7E]*$";
         if (!Regex.IsMatch(msg.DisplayName, patternDname))
-            throw ex;
-        string pattern = @"^[\x20-\x7E\s]*$";
-        if (!Regex.IsMatch(msg.MessageContents, pattern))
-            throw ex;
-        return string.Format("MSG FROM {0} IS {1}\r\n", msg.DisplayName, msg.MessageContents);
-    }
-    
-    
-    public static Msg FromStringTcp(string[] words)
-    {
-        Exception ex = new Exception("Wrong data from server");
-        if (words.Length != 5 )
-            throw ex;
-        if (words[1] != "FROM")
-            throw ex;
-        string patternDname = @"^[\x20-\x7E]*$";
-        if (!Regex.IsMatch(words[2], patternDname))
-            throw ex;
-        
-        if(words[3]!="IS")
-            throw ex;
-        if (words[4].Length > 1400)
-            throw ex;
+            throw new ArgumentException("Invalid characters in DisplayName.");
 
         string pattern = @"^[\x20-\x7E\s]*$";
-        if (!Regex.IsMatch(words[3], pattern))
-            throw ex;
-        
-        Msg msg = new Msg()
+        if (!Regex.IsMatch(msg.MessageContents, pattern))
+            throw new ArgumentException("Invalid characters in MessageContents.");
+
+        return $"MSG FROM {msg.DisplayName} IS {msg.MessageContents}\r\n";
+    }
+
+    public static Msg FromStringTcp(string[] words)
+    {
+        if (words.Length != 5 || words[1] != "FROM" || words[3] != "IS")
+            throw new ArgumentException("Wrong format");
+
+        string patternDname = @"^[\x20-\x7E]*$";
+        if (!Regex.IsMatch(words[2], patternDname))
+            throw new ArgumentException("Invalid characters in DisplayName.");
+
+        string pattern = @"^[\x20-\x7E\s]*$";
+        if (!Regex.IsMatch(words[4], pattern))
+            throw new ArgumentException("Invalid characters in MessageContents.");
+
+        return new Msg
         {
             DisplayName = words[2],
             MessageContents = words[4]
         };
-        return msg;
     }
-    
-    
+
     public byte[] ToBytes(ushort id)
     {
+        MessageId = id;
+
         if (DisplayName is null || MessageContents is null)
             throw new InvalidOperationException("DisplayName and MessageContents must not be null");
 
         byte[] displayNameBytes = Encoding.UTF8.GetBytes(DisplayName);
-        byte[] messageContentsBytes = Encoding.UTF8.GetBytes(MessageContents);
+        byte[] messageBytes = Encoding.UTF8.GetBytes(MessageContents);
 
-        // Create an array to combine all bytes
-        byte[] result = new byte[1 + 2 + displayNameBytes.Length + 1 + messageContentsBytes.Length + 1];
-
+        byte[] result = new byte[1 + 2 + displayNameBytes.Length + 1 + messageBytes.Length + 1];
         result[0] = (byte)MessageType;
 
         byte[] messageIdBytes = BitConverter.GetBytes(id);
         Array.Copy(messageIdBytes, 0, result, 1, 2);
 
         int offset = 3;
-
         Array.Copy(displayNameBytes, 0, result, offset, displayNameBytes.Length);
         offset += displayNameBytes.Length;
-        result[offset++] = 0; // Null terminator after DisplayName
+        result[offset++] = 0;
 
-        Array.Copy(messageContentsBytes, 0, result, offset, messageContentsBytes.Length);
-        offset += messageContentsBytes.Length;
-        result[offset] = 0; // Null terminator after MessageContents
+        Array.Copy(messageBytes, 0, result, offset, messageBytes.Length);
+        offset += messageBytes.Length;
+        result[offset] = 0;
 
         return result;
     }
+
     public static Msg FromBytes(byte[] data)
     {
-        Msg msg = new Msg();
+        if (data.Length < 3)
+            throw new ArgumentException("Data too short");
 
-        // Check the length of the array
-        if (data.Length >= 3)
+        var msg = new Msg
         {
-            msg.MessageType = (MessageType)data[0];
+            MessageType = (MessageType)data[0],
+            MessageId = BitConverter.ToUInt16(data, 1)
+        };
 
-            // Getting MessageId from byte array
-            ushort id = BitConverter.ToUInt16(data, 1);
+        int offset = 3;
 
-            int offset = 3;
+        int dnameEnd = Array.IndexOf<byte>(data, 0, offset);
+        if (dnameEnd < 0)
+            throw new ArgumentException("Missing null terminator for DisplayName");
 
-            // DisplayName
-            int displayNameLength = Array.IndexOf<byte>(data, 0, offset) - offset;
-            if (displayNameLength >= 0)
-            {
-                msg.DisplayName = Encoding.UTF8.GetString(data, offset, displayNameLength);
-                offset += displayNameLength + 1; // Move to the next byte after the null terminator
-            }
+        msg.DisplayName = Encoding.UTF8.GetString(data, offset, dnameEnd - offset);
+        offset = dnameEnd + 1;
 
-            // MessageContents
-            int messageContentsLength = Array.IndexOf<byte>(data, 0, offset) - offset;
-            if (messageContentsLength >= 0)
-            {
-                msg.MessageContents = Encoding.UTF8.GetString(data, offset, messageContentsLength);
-            }
-        }
+        int msgEnd = Array.IndexOf<byte>(data, 0, offset);
+        if (msgEnd < 0)
+            throw new ArgumentException("Missing null terminator for MessageContents");
+
+        msg.MessageContents = Encoding.UTF8.GetString(data, offset, msgEnd - offset);
 
         return msg;
     }
