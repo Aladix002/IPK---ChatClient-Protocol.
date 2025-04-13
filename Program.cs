@@ -2,6 +2,7 @@
 using System;
 using System.Net;
 using System.Threading.Tasks;
+using Message;
 
 namespace Chat25;
 
@@ -31,14 +32,16 @@ class Program
                             try
                             {
                                 var hostEntry = await Dns.GetHostEntryAsync(parsedArgs.Ip);
-                                var ipv4 = Array.Find(hostEntry.AddressList, ip => ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork);
+                                var ipv4 = Array.Find(hostEntry.AddressList,
+                                    ip => ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork);
+
                                 if (ipv4 == null)
                                 {
                                     Console.Error.WriteLine("ERR: No IPv4 address found for the provided hostname.");
                                     return 1;
                                 }
 
-                                await Udp.RunClientSession(parsedArgs, ipv4);
+                                await Udp.RunClientSession(parsedArgs, ipv4); // ✅ tu je oprava
                             }
                             catch (Exception ex)
                             {
@@ -61,5 +64,6 @@ class Program
                 });
     }
 }
+
 
 

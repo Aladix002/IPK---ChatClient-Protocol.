@@ -3,8 +3,8 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Message;
 
-
 namespace Command;
+
 public static class TcpCommandHandler
 {
     public static async Task<bool> HandleAuth(string[] words, NetworkStream stream, Action<string> setDisplayName)
@@ -23,6 +23,9 @@ public static class TcpCommandHandler
         };
 
         setDisplayName(auth.DisplayName);
+
+        // Convert the AUTH message to TCP string and send it
+        // https://learn.microsoft.com/en-us/dotnet/api/system.io.stream.writeasync?view=net-8.0
         byte[] data = Encoding.ASCII.GetBytes(auth.ToTcpString());
         await stream.WriteAsync(data);
         return true;
@@ -43,6 +46,8 @@ public static class TcpCommandHandler
         }
 
         var join = new Join { ChannelId = words[1], DisplayName = displayName };
+
+        // Format and send the JOIN message
         byte[] data = Encoding.ASCII.GetBytes(Join.ToTcpString(join));
         await stream.WriteAsync(data);
     }
@@ -83,8 +88,11 @@ public static class TcpCommandHandler
         }
 
         var msg = new Msg { DisplayName = displayName, MessageContents = input };
+
+        // Format and send message to server
         byte[] data = Encoding.ASCII.GetBytes(Msg.ToTcpString(msg));
         await stream.WriteAsync(data);
     }
 }
+
 

@@ -1,5 +1,10 @@
 using CommandLine;
 
+/*
+ * Minimal argument definition
+ * Adapted from https://github.com/commandlineparser/commandline
+ * Record holds necessary CLI parameters for the chat client and their default values
+ */
 public record Arguments
 {
     [Option('t', Required = true, HelpText = "Transport protocol (tcp or udp)")]
@@ -16,6 +21,4 @@ public record Arguments
 
     [Option('r', Default = 3, HelpText = "UDP max retries")]
     public int MaxRetries { get; init; }
-
-    
 }

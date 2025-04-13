@@ -1,4 +1,5 @@
 using System.Text;
+using System.Buffers.Binary;
 using System.Text.RegularExpressions;
 using Message;
 
@@ -50,8 +51,6 @@ public class Msg : IMessage
 
     public byte[] ToBytes(ushort id)
     {
-        MessageId = id;
-
         if (DisplayName is null || MessageContents is null)
             throw new InvalidOperationException("DisplayName and MessageContents must not be null");
 
@@ -61,8 +60,8 @@ public class Msg : IMessage
         byte[] result = new byte[1 + 2 + displayNameBytes.Length + 1 + messageBytes.Length + 1];
         result[0] = (byte)MessageType;
 
-        byte[] messageIdBytes = BitConverter.GetBytes(id);
-        Array.Copy(messageIdBytes, 0, result, 1, 2);
+        // NEZÁVISLÉ od MessageId property – ID dostávaš z vonku
+        BinaryPrimitives.WriteUInt16BigEndian(result.AsSpan(1, 2), id);
 
         int offset = 3;
         Array.Copy(displayNameBytes, 0, result, offset, displayNameBytes.Length);
