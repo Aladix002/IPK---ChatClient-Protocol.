@@ -132,27 +132,60 @@ public class Udp
         // SENDING MESSAGES
         while (true)
         {
-            string? messageText = Console.ReadLine();
-            if (string.IsNullOrWhiteSpace(messageText)) continue;
+            string? input = Console.ReadLine();
+            if (string.IsNullOrWhiteSpace(input)) continue;
             if (_state != State.open) continue;
+
+            if (input.StartsWith("/rename "))
+            {
+                var tokens = input.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                if (tokens.Length == 2)
+                {
+                    _userDisplayName = tokens[1];
+                    Console.WriteLine($"Renamed to '{_userDisplayName}'");
+                }
+                continue;
+            }
+
+            if (input.StartsWith("/join "))
+            {
+                var tokens = input.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                if (tokens.Length == 2)
+                {
+                    var join = new Join
+                    {
+                        ChannelId = tokens[1],
+                        DisplayName = _userDisplayName ?? "?"
+                    };
+
+                    ushort joinId;
+                    lock (_stateLock)
+                    {
+                        joinId = _messageId++;
+                    }
+
+                    byte[] joinBytes = join.ToBytes(joinId);
+                    if (!await SendWithConfirm(client, joinBytes, dynamicServerEP!, joinId)) continue;
+                }
+                continue;
+            }
 
             var message = new Msg
             {
                 DisplayName = _userDisplayName ?? "?",
-                MessageContents = messageText
+                MessageContents = input
             };
 
             ushort currentId;
             lock (_stateLock)
             {
                 currentId = _messageId;
-                _messageId++; 
+                _messageId++;
             }
 
             byte[] msgBytes = message.ToBytes(currentId);
             _ = await SendWithConfirm(client, msgBytes, dynamicServerEP!, currentId);
         }
-
     }
 
     private static void SetState(State newState)
@@ -214,6 +247,7 @@ public class Udp
         return BinaryPrimitives.ReadUInt16BigEndian(data.AsSpan(1, 2));
     }
 }
+
 
 
 
