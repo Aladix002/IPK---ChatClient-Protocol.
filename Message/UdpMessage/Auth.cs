@@ -4,7 +4,7 @@ using System.Text.RegularExpressions;
 
 namespace Message;
 
-public class Auth : ITcpMessage
+public class Auth
 {
     public MessageType MessageType => MessageType.AUTH;
 
@@ -27,12 +27,6 @@ public class Auth : ITcpMessage
         RequireMatch(Username, ValidUsername, nameof(Username));
         RequireMatch(DisplayName, ValidDisplayName, nameof(DisplayName));
         RequireMatch(Secret, ValidSecret, nameof(Secret));
-    }
-
-    public string ToTcpString()
-    {
-        Validate();
-        return $"AUTH {Username} AS {DisplayName} USING {Secret}\r\n";
     }
 
     public byte[] ToBytes(ushort messageId)

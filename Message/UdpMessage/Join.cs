@@ -4,26 +4,13 @@ using System.Buffers.Binary;
 using Message;
 
 
-public class Join : IMessage
+public class Join
 {
     public MessageType MessageType => MessageType.JOIN;
 
     public required string ChannelId { get; init; }
     public required string DisplayName { get; init; }
 
-    public static string ToTcpString(Join join)
-    {
-        if (join.ChannelId.Length > 20 || join.DisplayName.Length > 20)
-            throw new ArgumentException("ChannelId and DisplayName must be at most 20 characters.");
-
-        if (!Regex.IsMatch(join.ChannelId, @"^[a-zA-Z0-9_.-]+$"))
-            throw new ArgumentException("ChannelId can contain only a-z, A-Z, 0-9, '-', '_' or '.'");
-
-        if (!Regex.IsMatch(join.DisplayName, @"^[\x20-\x7E]*$"))
-            throw new ArgumentException("DisplayName must contain only printable ASCII characters");
-
-        return $"JOIN {join.ChannelId} AS {join.DisplayName}\r\n";
-    }
 
     public byte[] ToBytes(ushort id)
 {
@@ -54,16 +41,4 @@ public class Join : IMessage
     return result;
 }
 
-
-    public static Join FromTcpString(string[] parts)
-    {
-        if (parts.Length != 4 || parts[0] != "JOIN" || parts[2] != "AS")
-            throw new ArgumentException("Invalid JOIN message format");
-
-        return new Join
-        {
-            ChannelId = parts[1],
-            DisplayName = parts[3]
-        };
-    }
 }

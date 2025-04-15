@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("IPK25-CHAT")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+c5df53f405f414333bed1c2bb5174377b553f276")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+40c34e0529f78546c57f93acf2fbbd30cfb41f7f")]
 [assembly: System.Reflection.AssemblyProductAttribute("IPK25-CHAT")]
 [assembly: System.Reflection.AssemblyTitleAttribute("IPK25-CHAT")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

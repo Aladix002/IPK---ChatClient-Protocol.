@@ -1,7 +1,7 @@
 using System.Text;
 using Message;
 
-public class PingMessage : IMessage
+public class PingMessage
 {
     public MessageType MessageType { get; set; } = MessageType.PING;
 

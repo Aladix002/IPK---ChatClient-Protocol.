@@ -3,7 +3,7 @@ using System.Buffers.Binary;
 
 namespace Message;
 
-public class Confirm : IMessage
+public class Confirm
 {
     public MessageType MessageType => MessageType.CONFIRM;
     

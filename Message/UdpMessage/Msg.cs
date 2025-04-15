@@ -3,51 +3,12 @@ using System.Buffers.Binary;
 using System.Text.RegularExpressions;
 using Message;
 
-public class Msg : IMessage
+public class Msg
 {
     public MessageType MessageType { get; set; } = MessageType.MSG;
-    public ushort MessageId { get; set; }  // <- DOPLNENÉ
+    public ushort MessageId { get; set; } 
     public string? DisplayName { get; set; }
     public string? MessageContents { get; set; }
-
-    public static string ToTcpString(Msg msg)
-    {
-        if (string.IsNullOrEmpty(msg.DisplayName) || string.IsNullOrEmpty(msg.MessageContents))
-            throw new ArgumentException("DisplayName or MessageContents cannot be null or empty.");
-
-        if (msg.DisplayName.Length > 20 || msg.MessageContents.Length > 1400)
-            throw new ArgumentException("Display name or message too long.");
-
-        string patternDname = @"^[\x20-\x7E]*$";
-        if (!Regex.IsMatch(msg.DisplayName, patternDname))
-            throw new ArgumentException("Invalid characters in DisplayName.");
-
-        string pattern = @"^[\x20-\x7E\s]*$";
-        if (!Regex.IsMatch(msg.MessageContents, pattern))
-            throw new ArgumentException("Invalid characters in MessageContents.");
-
-        return $"MSG FROM {msg.DisplayName} IS {msg.MessageContents}\r\n";
-    }
-
-    public static Msg FromStringTcp(string[] words)
-    {
-        if (words.Length != 5 || words[1] != "FROM" || words[3] != "IS")
-            throw new ArgumentException("Wrong format");
-
-        string patternDname = @"^[\x20-\x7E]*$";
-        if (!Regex.IsMatch(words[2], patternDname))
-            throw new ArgumentException("Invalid characters in DisplayName.");
-
-        string pattern = @"^[\x20-\x7E\s]*$";
-        if (!Regex.IsMatch(words[4], pattern))
-            throw new ArgumentException("Invalid characters in MessageContents.");
-
-        return new Msg
-        {
-            DisplayName = words[2],
-            MessageContents = words[4]
-        };
-    }
 
     public byte[] ToBytes(ushort id)
     {
@@ -59,8 +20,7 @@ public class Msg : IMessage
 
         byte[] result = new byte[1 + 2 + displayNameBytes.Length + 1 + messageBytes.Length + 1];
         result[0] = (byte)MessageType;
-
-        // NEZÁVISLÉ od MessageId property – ID dostávaš z vonku
+        
         BinaryPrimitives.WriteUInt16BigEndian(result.AsSpan(1, 2), id);
 
         int offset = 3;

@@ -15,18 +15,17 @@ public static class TcpCommandHandler
             return false;
         }
 
-        var auth = new Auth
+        var msg = new TcpMessage
         {
+            Type = MessageType.AUTH,
             Username = words[1],
             Secret = words[2],
             DisplayName = words[3]
         };
 
-        setDisplayName(auth.DisplayName);
+        setDisplayName(msg.DisplayName!);
 
-        // Convert the AUTH message to TCP string and send it
-        // https://learn.microsoft.com/en-us/dotnet/api/system.io.stream.writeasync?view=net-8.0
-        byte[] data = Encoding.ASCII.GetBytes(auth.ToTcpString());
+        byte[] data = Encoding.ASCII.GetBytes(msg.ToTcpString());
         await stream.WriteAsync(data);
         return true;
     }
@@ -45,10 +44,14 @@ public static class TcpCommandHandler
             return;
         }
 
-        var join = new Join { ChannelId = words[1], DisplayName = displayName };
+        var msg = new TcpMessage
+        {
+            Type = MessageType.JOIN,
+            DisplayName = displayName,
+            ChannelId = words[1]
+        };
 
-        // Format and send the JOIN message
-        byte[] data = Encoding.ASCII.GetBytes(Join.ToTcpString(join));
+        byte[] data = Encoding.ASCII.GetBytes(msg.ToTcpString());
         await stream.WriteAsync(data);
     }
 
@@ -87,12 +90,17 @@ public static class TcpCommandHandler
             return;
         }
 
-        var msg = new Msg { DisplayName = displayName, MessageContents = input };
+        var msg = new TcpMessage
+        {
+            Type = MessageType.MSG,
+            DisplayName = displayName,
+            MessageContents = input
+        };
 
-        // Format and send message to server
-        byte[] data = Encoding.ASCII.GetBytes(Msg.ToTcpString(msg));
+        byte[] data = Encoding.ASCII.GetBytes(msg.ToTcpString());
         await stream.WriteAsync(data);
     }
 }
+
 
 

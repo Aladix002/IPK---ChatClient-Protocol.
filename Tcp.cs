@@ -10,6 +10,7 @@ public class Tcp
 {
     private static readonly Mutex _stateLock = new();
     private static State _State = State.start;
+    private static bool _shutdownInitiated = false;
 
     private static string? _userDisplayName;
 
@@ -36,9 +37,7 @@ public class Tcp
         Console.CancelKeyPress += async (_, e) =>
         {
             e.Cancel = true;
-            await SendDisconnectNotice(socket);
-            socket.Close();
-            Environment.Exit(0);
+            await GracefulShutdown(socket);
         };
 
         while (true)
@@ -61,25 +60,62 @@ public class Tcp
                     TcpCommandHandler.HandleHelp();
                     break;
 
-                case "/auth" when currentState == State.start || currentState == State.auth:
+                case "/auth" when currentState is State.start or State.auth:
                     {
-                        bool ok = await TcpCommandHandler.HandleAuth(tokens, stream, name => _userDisplayName = name);
-                        if (ok)
+                        if (tokens.Length != 4)
                         {
-                            _stateLock.WaitOne();
-                            _State = State.auth;
-                            _stateLock.ReleaseMutex();
+                            Console.Error.WriteLine("ERR: Usage: /auth <username> <secret> <displayName>");
+                            break;
                         }
+
+                        var msg = new TcpMessage
+                        {
+                            Type = MessageType.AUTH,
+                            DisplayName = tokens[3],
+                            Username = tokens[1],
+                            Secret = tokens[2]
+                        };
+
+                        _userDisplayName = msg.DisplayName;
+                        await stream.WriteAsync(Encoding.ASCII.GetBytes(msg.ToTcpString()));
+
+                        _stateLock.WaitOne();
+                        _State = State.auth;
+                        _stateLock.ReleaseMutex();
                         break;
                     }
 
                 case "/join" when currentState == State.open:
-                    await TcpCommandHandler.HandleJoin(tokens, _userDisplayName, stream);
-                    break;
+                    {
+                        if (tokens.Length != 2 || _userDisplayName == null)
+                        {
+                            Console.Error.WriteLine("ERR: Usage: /join <channelId>");
+                            break;
+                        }
+
+                        var msg = new TcpMessage
+                        {
+                            Type = MessageType.JOIN,
+                            DisplayName = _userDisplayName,
+                            ChannelId = tokens[1]
+                        };
+
+                        await stream.WriteAsync(Encoding.ASCII.GetBytes(msg.ToTcpString()));
+                        break;
+                    }
 
                 case "/rename" when currentState == State.open:
-                    TcpCommandHandler.HandleRename(tokens, ref _userDisplayName);
-                    break;
+                    {
+                        if (tokens.Length != 2)
+                        {
+                            Console.Error.WriteLine("ERR: Usage: /rename <displayName>");
+                            break;
+                        }
+
+                        _userDisplayName = tokens[1];
+                        Console.WriteLine($"Renamed to {_userDisplayName}");
+                        break;
+                    }
 
                 default:
                     if (tokens[0].StartsWith("/"))
@@ -88,7 +124,14 @@ public class Tcp
                     }
                     else if (currentState == State.open)
                     {
-                        await TcpCommandHandler.HandleMessage(input, _userDisplayName, stream);
+                        var msg = new TcpMessage
+                        {
+                            Type = MessageType.MSG,
+                            DisplayName = _userDisplayName ?? "?",
+                            MessageContents = input
+                        };
+
+                        await stream.WriteAsync(Encoding.ASCII.GetBytes(msg.ToTcpString()));
                     }
                     else
                     {
@@ -99,10 +142,20 @@ public class Tcp
         }
     }
 
-    private static async Task SendDisconnectNotice(Socket socket)
+    private static async Task GracefulShutdown(Socket socket)
     {
-        byte[] message = Encoding.UTF8.GetBytes("BYE\r\n");
-        await socket.SendAsync(message, SocketFlags.None);
+        if (_shutdownInitiated) return;
+        _shutdownInitiated = true;
+
+        try
+        {
+            var bye = new TcpMessage { Type = MessageType.BYE };
+            await socket.SendAsync(Encoding.ASCII.GetBytes(bye.ToTcpString()), SocketFlags.None);
+        }
+        catch { }
+
+        socket.Close();
+        Environment.Exit(0);
     }
 
     private static async Task ListenForServerMessages(Socket socket)
@@ -119,70 +172,45 @@ public class Tcp
 
             foreach (var line in lines)
             {
-                if (line.StartsWith("REPLY"))
+                var msg = TcpMessage.ParseTcp(line);
+
+                switch (msg.Type)
                 {
-                    HandleReply(line);
-                }
-                else if (line.StartsWith("MSG"))
-                {
-                    DisplayMessage(line);
-                }
-                else if (line.StartsWith("ERR"))
-                {
-                    HandleServerError(line, socket);
-                    return;
-                }
-                else if (line.StartsWith("BYE"))
-                {
-                    socket.Close();
-                    Environment.Exit(0);
+                    case MessageType.REPLY:
+                        HandleReply(msg);
+                        break;
+
+                    case MessageType.MSG:
+                        Console.WriteLine($"{msg.DisplayName}: {msg.MessageContents}");
+                        break;
+
+                    case MessageType.ERR:
+                        Console.Error.WriteLine($"ERROR FROM {msg.DisplayName}: {msg.MessageContents}");
+                        await GracefulShutdown(socket);
+                        return;
+
+                    case MessageType.BYE:
+                        await GracefulShutdown(socket);
+                        return;
                 }
             }
         }
     }
 
-    private static void HandleReply(string line)
+    private static void HandleReply(TcpMessage msg)
     {
-        try
+        Console.WriteLine(msg.Result
+            ? $"Success: {msg.MessageContents}"
+            : $"Failure: {msg.MessageContents}");
+
+        if (msg.Result)
         {
-            var parts = line.Split(' ', 4);
-            var reply = Reply.FromTcpString(parts);
-
-            Console.WriteLine(reply.Result
-                ? $"Success: {reply.MessageContent}"
-                : $"Failure: {reply.MessageContent}");
-
-            if (reply.Result)
-            {
-                _stateLock.WaitOne();
-                _State = State.open;
-                _stateLock.ReleaseMutex();
-            }
+            _stateLock.WaitOne();
+            _State = State.open;
+            _stateLock.ReleaseMutex();
         }
-        catch
-        {
-            Console.Error.WriteLine("ERR: Failed to parse REPLY");
-        }
-    }
-
-    private static void DisplayMessage(string line)
-    {
-        var parts = line.Split(" IS ", 2);
-        var sender = parts[0].Substring("MSG FROM ".Length);
-        var message = parts[1];
-        Console.WriteLine($"{sender}: {message}");
-    }
-
-    private static void HandleServerError(string line, Socket socket)
-    {
-        var parts = line.Split(" IS ", 2);
-        var sender = parts[0].Substring("ERR FROM ".Length);
-        var error = parts[1];
-        Console.Error.WriteLine($"ERROR FROM {sender}: {error}");
-
-        _ = SendDisconnectNotice(socket);
-        socket.Close();
-        Environment.Exit(0);
     }
 }
+
+
 

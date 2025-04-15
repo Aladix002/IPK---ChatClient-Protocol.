@@ -4,37 +4,13 @@ using System.Buffers.Binary;
 
 namespace Message;
 
-public class Err : IMessage
+public class Err
 {
     public MessageType MessageType => MessageType.ERR;
     public ushort MessageId { get; set; }  // <-- pridane
     public required string DisplayName { get; init; }
     public required string MessageContents { get; init; }
 
-    private static readonly Regex NameRegex = new(@"^[\x20-\x7E]{1,20}$");
-    private static readonly Regex ContentRegex = new(@"^[\x20-\x7E\s]{1,1400}$");
-
-    public static string ToTcpString(Err err)
-    {
-        if (!NameRegex.IsMatch(err.DisplayName) || !ContentRegex.IsMatch(err.MessageContents))
-            throw new ArgumentException("Invalid ERR content or display name format.");
-        return $"ERR FROM {err.DisplayName} IS {err.MessageContents}\r\n";
-    }
-
-    public static Err FromTcpString(string[] words)
-    {
-        if (words.Length != 5 || words[0] != "ERR" || words[1] != "FROM" || words[3] != "IS")
-            throw new ArgumentException("Malformed ERR message.");
-
-        if (!NameRegex.IsMatch(words[2]) || !ContentRegex.IsMatch(words[4]))
-            throw new ArgumentException("Invalid content or display name in ERR.");
-
-        return new Err
-        {
-            DisplayName = words[2],
-            MessageContents = words[4]
-        };
-    }
 
     public byte[] ToBytes(ushort id)
     {

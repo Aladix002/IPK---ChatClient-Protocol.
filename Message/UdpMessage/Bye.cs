@@ -3,11 +3,9 @@ using System.Buffers.Binary;
 
 namespace Message;
 
-public class Bye : ITcpMessage
+public class Bye
 {
     public MessageType MessageType => MessageType.BYE;
-
-    public string ToTcpString() => "BYE\r\n";
 
     public byte[] ToBytes(ushort messageId)
     {
