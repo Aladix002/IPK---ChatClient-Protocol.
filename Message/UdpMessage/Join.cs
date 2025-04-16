@@ -21,19 +21,19 @@ public class Join
 
     int offset = 0;
 
-    // MessageType (1 byte)
+  
     result[offset++] = (byte)MessageType;
 
-    // MessageId (2 bytes) - BIG ENDIAN
+   
     System.Buffers.Binary.BinaryPrimitives.WriteUInt16BigEndian(result.AsSpan(offset, 2), id);
     offset += 2;
 
-    // ChannelId
+
     Array.Copy(channelIdBytes, 0, result, offset, channelIdBytes.Length);
     offset += channelIdBytes.Length;
     result[offset++] = 0;
 
-    // DisplayName
+ 
     Array.Copy(displayNameBytes, 0, result, offset, displayNameBytes.Length);
     offset += displayNameBytes.Length;
     result[offset] = 0;

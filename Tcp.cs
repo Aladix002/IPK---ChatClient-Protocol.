@@ -8,11 +8,11 @@ using Command;
 
 public class Tcp
 {
-    private static readonly Mutex _stateLock = new();
-    private static State _State = State.start;
-    private static bool _shutdownInitiated = false;
+    private static readonly Mutex _stateLock = new(); // Lock to protect state switching between threads
+    private static State _State = State.start; // Initial state of the client
+    private static bool _shutdownInitiated = false; // Prevent multiple shutdowns
 
-    private static string? _userDisplayName;
+    private static string? _userDisplayName; // Saved after successful auth
 
     public static async Task RunClientSession(Arguments args)
     {
@@ -22,9 +22,10 @@ public class Tcp
         {
             socket.Connect(args.Ip, args.Port);
 
+            // Start parallel tasks for reading from console and listening from server
             var receiver = ListenForServerMessages(socket);
             var sender = HandleUserInput(socket);
-            await Task.WhenAll(receiver, sender);
+            await Task.WhenAll(receiver, sender); // wait both to finish
         }
         catch (Exception ex)
         {
@@ -34,6 +35,7 @@ public class Tcp
 
     private static async Task HandleUserInput(Socket socket)
     {
+
         Console.CancelKeyPress += async (_, e) =>
         {
             e.Cancel = true;
@@ -43,6 +45,12 @@ public class Tcp
         while (true)
         {
             var input = Console.ReadLine();
+            if (input == null)
+            {
+                await GracefulShutdown(socket);
+                return;
+            }
+
             if (string.IsNullOrWhiteSpace(input)) continue;
 
             var tokens = input.Split(' ', StringSplitOptions.RemoveEmptyEntries);
@@ -52,6 +60,12 @@ public class Tcp
             var currentState = _State;
             _stateLock.ReleaseMutex();
 
+            if (currentState == State.start && !tokens[0].StartsWith("/auth"))
+            {
+                Console.WriteLine("ERROR: You must be authenticated before sending messages");
+                continue;
+            }
+
             using var stream = new NetworkStream(socket);
 
             switch (tokens[0])
@@ -60,6 +74,7 @@ public class Tcp
                     TcpCommandHandler.HandleHelp();
                     break;
 
+                // AUTH allowed in start/auth state
                 case "/auth" when currentState is State.start or State.auth:
                     {
                         if (tokens.Length != 4)
@@ -85,6 +100,10 @@ public class Tcp
                         break;
                     }
 
+                case "/auth" when currentState == State.open:
+                    Console.WriteLine("ERROR: Already authenticated – cannot use /auth again.");
+                    break;
+                
                 case "/join" when currentState == State.open:
                     {
                         if (tokens.Length != 2 || _userDisplayName == null)
@@ -135,7 +154,7 @@ public class Tcp
                     }
                     else
                     {
-                        Console.Error.WriteLine("ERR: You must be authenticated before sending messages");
+                        Console.WriteLine("ERROR: You must be authenticated before sending messages");
                     }
                     break;
             }
@@ -149,7 +168,12 @@ public class Tcp
 
         try
         {
-            var bye = new TcpMessage { Type = MessageType.BYE };
+            // Send BYE message before exiting
+            var bye = new TcpMessage
+            {
+                Type = MessageType.BYE,
+                DisplayName = _userDisplayName
+            };
             await socket.SendAsync(Encoding.ASCII.GetBytes(bye.ToTcpString()), SocketFlags.None);
         }
         catch { }
@@ -172,7 +196,33 @@ public class Tcp
 
             foreach (var line in lines)
             {
-                var msg = TcpMessage.ParseTcp(line);
+                TcpMessage msg;
+                try
+                {
+                    msg = TcpMessage.ParseTcp(line);
+
+                    // source: https://learn.microsoft.com/en-us/dotnet/api/system.string.split
+                }
+                catch (Exception)
+                {
+                    Console.WriteLine("ERROR: Malformed message received.");
+
+                    // Send ERR message back to server
+                    try
+                    {
+                        var err = new TcpMessage
+                        {
+                            Type = MessageType.ERR,
+                            DisplayName = _userDisplayName ?? "client",
+                            MessageContents = "Malformed message received"
+                        };
+                        await socket.SendAsync(Encoding.ASCII.GetBytes(err.ToTcpString()), SocketFlags.None);
+                    }
+                    catch { }
+
+                    await GracefulShutdown(socket);
+                    return;
+                }
 
                 switch (msg.Type)
                 {
@@ -185,7 +235,7 @@ public class Tcp
                         break;
 
                     case MessageType.ERR:
-                        Console.Error.WriteLine($"ERROR FROM {msg.DisplayName}: {msg.MessageContents}");
+                        Console.WriteLine($"ERROR FROM {msg.DisplayName}: {msg.MessageContents}");
                         await GracefulShutdown(socket);
                         return;
 
@@ -197,13 +247,14 @@ public class Tcp
         }
     }
 
-    private static void HandleReply(TcpMessage msg)
+    private static void HandleReply(TcpMessage reply)
     {
-        Console.WriteLine(msg.Result
-            ? $"Success: {msg.MessageContents}"
-            : $"Failure: {msg.MessageContents}");
+        // Reply message changes client state to open
+        Console.WriteLine(reply.Result
+            ? $"Action Success: {reply.MessageContents}"
+            : $"Action Failure: {reply.MessageContents}");
 
-        if (msg.Result)
+        if (reply.Result)
         {
             _stateLock.WaitOne();
             _State = State.open;
@@ -211,6 +262,7 @@ public class Tcp
         }
     }
 }
+
 
 
 

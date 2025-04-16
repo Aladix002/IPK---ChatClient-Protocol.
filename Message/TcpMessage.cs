@@ -74,14 +74,20 @@ public class TcpMessage
             };
         }
 
-        if (line.StartsWith("BYE"))
+        if (line.StartsWith("BYE FROM "))
         {
-            return new TcpMessage { Type = MessageType.BYE };
+            var displayName = line.Substring("BYE FROM ".Length);
+            return new TcpMessage
+            {
+                Type = MessageType.BYE,
+                DisplayName = displayName
+            };
         }
-
         throw new ArgumentException("Unsupported TCP message format.");
     }
 
+
+    // https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/operators/switch-expression
     public string ToTcpString()
     {
         return Type switch
@@ -91,7 +97,7 @@ public class TcpMessage
             MessageType.MSG => $"MSG FROM {DisplayName} IS {MessageContents}\r\n",
             MessageType.ERR => $"ERR FROM {DisplayName} IS {MessageContents}\r\n",
             MessageType.REPLY => $"REPLY {(Result ? "OK" : "NOK")} IS {MessageContents}\r\n",
-            MessageType.BYE => "BYE\r\n",
+            MessageType.BYE => $"BYE FROM {DisplayName}\r\n",
             _ => throw new InvalidOperationException("Unsupported message type")
         };
     }

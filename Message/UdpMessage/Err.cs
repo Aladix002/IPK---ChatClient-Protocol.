@@ -7,14 +7,14 @@ namespace Message;
 public class Err
 {
     public MessageType MessageType => MessageType.ERR;
-    public ushort MessageId { get; set; }  // <-- pridane
+    public ushort MessageId { get; set; } 
     public required string DisplayName { get; init; }
     public required string MessageContents { get; init; }
 
 
     public byte[] ToBytes(ushort id)
     {
-        MessageId = id; // <- uloženie ID
+        MessageId = id;
         var nameBytes = Encoding.UTF8.GetBytes(DisplayName);
         var contentBytes = Encoding.UTF8.GetBytes(MessageContents);
         var result = new byte[1 + 2 + nameBytes.Length + 1 + contentBytes.Length + 1];

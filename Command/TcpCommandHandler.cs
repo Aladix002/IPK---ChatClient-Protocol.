@@ -7,6 +7,7 @@ namespace Command;
 
 public static class TcpCommandHandler
 {
+    // https://learn.microsoft.com/en-us/dotnet/api/system.net.sockets.networkstream.writeasync
     public static async Task<bool> HandleAuth(string[] words, NetworkStream stream, Action<string> setDisplayName)
     {
         if (words.Length != 4)
@@ -55,6 +56,7 @@ public static class TcpCommandHandler
         await stream.WriteAsync(data);
     }
 
+    // https://regex101.com/ 
     public static void HandleRename(string[] words, ref string? displayName)
     {
         if (words.Length != 2 || words[1].Length > 20 || !Regex.IsMatch(words[1], @"^[\x20-\x7E]*$"))
@@ -84,7 +86,7 @@ public static class TcpCommandHandler
             return;
         }
 
-        if (input.Length > 1400)
+        if (input.Length > 1400) // limit for message length
         {
             Console.Error.WriteLine("ERR: Message too long");
             return;
@@ -101,6 +103,7 @@ public static class TcpCommandHandler
         await stream.WriteAsync(data);
     }
 }
+
 
 
 
