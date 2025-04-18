@@ -1,4 +1,3 @@
-namespace Command;
 public enum State
 {
     start,
