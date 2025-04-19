@@ -33,7 +33,11 @@ public class TcpCommandHandler
 
             var currentState = _stateManager.GetState();
 
-            if (currentState == State.start && !tokens[0].StartsWith("/auth"))
+            if (tokens[0].StartsWith("/help")){
+                Udp.HandleHelp();
+                continue;
+            }
+            else if (currentState == State.start && !tokens[0].StartsWith("/auth"))
             {
                 Console.WriteLine("ERROR: You must be authenticated before sending messages");
                 continue;
@@ -44,11 +48,7 @@ public class TcpCommandHandler
             switch (tokens[0])
             {
                 case "/help":
-                    Console.WriteLine("Available commands:");
-                    Console.WriteLine("/auth <username> <secret> <displayName>");
-                    Console.WriteLine("/join <channelId>");
-                    Console.WriteLine("/rename <displayName>");
-                    Console.WriteLine("/help");
+                    Udp.HandleHelp();
                     break;
 
                 case "/auth" when currentState is State.start or State.auth:

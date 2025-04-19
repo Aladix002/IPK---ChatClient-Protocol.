@@ -22,7 +22,14 @@ public class UdpAuthHandler
         while (true)
         {
             string? line = Console.ReadLine();
-            if (line == null || !line.StartsWith("/auth ")) continue;
+            if (line == null) continue;
+            if (line.StartsWith("/help"))
+            {
+                Udp.HandleHelp();
+                continue;
+            }
+
+            if (!line.StartsWith("/auth ")) continue;
 
             var tokens = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
             if (tokens.Length != 4) continue;
@@ -63,6 +70,11 @@ public class UdpAuthHandler
 
             var reply = Reply.FromBytes(replyRes.Buffer);
             UdpState.MarkReceived(reply.MessageId);
+
+            if (reply.Result)
+                Console.WriteLine($"Action Success: {reply.MessageContent}");
+            else
+                Console.WriteLine($"Action Failure: {reply.MessageContent}");
 
             var replyConfirm = new Confirm { RefMessageId = reply.MessageId };
             byte[] replyConfirmBytes = replyConfirm.ToBytes(0);

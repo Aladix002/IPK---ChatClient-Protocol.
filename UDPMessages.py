@@ -32,5 +32,8 @@ def err(message_id, display_name, message_contents):
     message_contents_bytes = message_contents.encode() + b'\x00'
     return bytes([0xFE]) + message_id_bytes + display_name_bytes + message_contents_bytes
 
+def ping(message_id):
+    return bytes([0x05]) + message_id.to_bytes(2, 'big')
+
 def bye(message_id):
     return bytes([0xFF]) + message_id.to_bytes(2, 'big')

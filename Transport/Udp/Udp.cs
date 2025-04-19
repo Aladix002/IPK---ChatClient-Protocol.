@@ -1,12 +1,13 @@
 using System;
 using System.Net;
 using System.Net.Sockets;
+using System.Reflection.Metadata;
 using System.Threading.Tasks;
 using Message;
 
 namespace Transport
 {
-public class Udp : IChatClient
+    public class Udp : IChatClient
 {
     private readonly Arguments _args;
     private readonly IPAddress _serverIp;
@@ -33,60 +34,97 @@ public class Udp : IChatClient
 
         while (_running)
         {
-            string? input = Console.ReadLine();
+            var input = Console.ReadLine();
+            if (input == null) break;
             if (string.IsNullOrWhiteSpace(input)) continue;
-            if (UdpState.GetState() != State.open)
+
+            var tokens = input.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (tokens.Length == 0) continue;
+
+            var currentState = UdpState.GetState();
+            var command = tokens[0];
+
+            if (command == "/help")
+            {
+                HandleHelp();
+                continue;
+            }
+
+            if (currentState == State.start && command != "/auth")
             {
                 Console.WriteLine("ERROR: You must authenticate first");
+                HandleHelp();
                 continue;
             }
 
-            if (input.StartsWith("/rename "))
+            switch (command)
             {
-                var tokens = input.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                if (tokens.Length == 2)
-                {
-                    UdpState.UserDisplayName = tokens[1];
-                    Console.WriteLine($"Renamed to '{UdpState.UserDisplayName}'");
-                }
-                continue;
-            }
+                case "/help" when currentState is State.start or State.auth:
+                    HandleHelp();
+                    break;
+                case "/auth" when currentState is State.start or State.auth:
+                    Console.WriteLine("INFO: Already authenticated.");
+                    break;
 
-            if (input.StartsWith("/join "))
-            {
-                var tokens = input.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-                if (tokens.Length == 2)
-                {
+                case "/auth" when currentState == State.open:
+                    Console.WriteLine("ERROR: Already authenticated – cannot use /auth again.");
+                    break;
+
+                case "/join" when currentState == State.open:
+                    if (tokens.Length != 2 || UdpState.UserDisplayName == null)
+                    {
+                        Console.Error.WriteLine("ERR: Usage: /join <channelId>");
+                        break;
+                    }
+
                     var join = new Join
                     {
                         ChannelId = tokens[1],
-                        DisplayName = UdpState.UserDisplayName ?? "?"
+                        DisplayName = UdpState.UserDisplayName
                     };
-
                     ushort joinId = UdpState.GetNextMessageId();
                     byte[] joinBytes = join.ToBytes(joinId);
-                    if (!await UdpConfirmHelper.SendWithConfirm(_client, joinBytes, _dynamicServerEP!, joinId, _args)) continue;
-                }
-                continue;
+                    await UdpConfirmHelper.SendWithConfirm(_client, joinBytes, _dynamicServerEP!, joinId, _args);
+                    break;
+
+                case "/rename" when currentState == State.open:
+                    if (tokens.Length != 2)
+                    {
+                        Console.Error.WriteLine("ERR: Usage: /rename <displayName>");
+                        break;
+                    }
+
+                    UdpState.UserDisplayName = tokens[1];
+                    Console.WriteLine($"Renamed to {UdpState.UserDisplayName}");
+                    break;
+
+                default:
+                    if (command.StartsWith("/"))
+                    {
+                        Console.Error.WriteLine("ERR: Unknown or disallowed command");
+                    }
+                    else if (currentState == State.open)
+                    {
+                        var msg = new Msg
+                        {
+                            DisplayName = UdpState.UserDisplayName ?? "?",
+                            MessageContents = input
+                        };
+                        ushort msgId = UdpState.GetNextMessageId();
+                        byte[] msgBytes = msg.ToBytes(msgId);
+                        await UdpConfirmHelper.SendWithConfirm(_client, msgBytes, _dynamicServerEP!, msgId, _args);
+                    }
+                    else
+                    {
+                        Console.WriteLine("ERROR: You must authenticate first");
+                    }
+                    break;
             }
-
-            var message = new Msg
-            {
-                DisplayName = UdpState.UserDisplayName ?? "?",
-                MessageContents = input
-            };
-
-            ushort currentId = UdpState.GetNextMessageId();
-            byte[] msgBytes = message.ToBytes(currentId);
-            _ = await UdpConfirmHelper.SendWithConfirm(_client, msgBytes, _dynamicServerEP!, currentId, _args);
         }
     }
 
     public async Task DisconnectAsync()
     {
-        _running = false;
-        UdpState.SetState(State.end);
-
         if (_dynamicServerEP != null && _client != null && UdpState.GetState() == State.open)
         {
             ushort byeId = UdpState.GetNextMessageId();
@@ -98,11 +136,23 @@ public class Udp : IChatClient
             await _client.SendAsync(byeBytes, byeBytes.Length, _dynamicServerEP);
         }
 
+        _running = false;
+        UdpState.SetState(State.end);
         _client?.Close();
-        await Task.CompletedTask;
+    }
+
+    public static void HandleHelp()
+    {
+        Console.WriteLine("Available commands:");
+        Console.WriteLine("/auth <username> <secret> <displayName>");
+        Console.WriteLine("/join <channelId>");
+        Console.WriteLine("/rename <displayName>");
+        Console.WriteLine("/help");
+        Console.Out.Flush();
     }
 }
 }
+
 
 
 

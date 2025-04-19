@@ -15,7 +15,6 @@ class Program
         Console.CancelKeyPress += async (sender, e) =>
         {
             e.Cancel = true;
-            Console.WriteLine("\nShutting down...");
             if (client != null)
                 await client.DisconnectAsync();
             Environment.Exit(0);
