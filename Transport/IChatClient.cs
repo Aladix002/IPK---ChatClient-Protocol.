@@ -4,7 +4,7 @@ namespace Transport
 {
 public interface IChatClient
 {
-    Task RunAsync();
+    Task Run();
     Task DisconnectAsync();
 }
 }

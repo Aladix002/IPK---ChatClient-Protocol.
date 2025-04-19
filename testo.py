@@ -17,7 +17,7 @@ import pty
 import os
 
 from UDPTranslator import translateMessage, getMessageId
-from UDPMessages import confirm, reply, auth, join, msg, err, bye
+from UDPMessages import confirm, reply, auth, join, msg, err, bye, ping
 
 global debug
 global run_tcp
@@ -787,6 +787,24 @@ def udp_ignore_duplicate_server_msg(tester):
     assert confirm2 == b"\x00\x00\x01", "Expected confirm for duplicate message"
 
 @testcase
+def udp_reports_error_when_missing_confirmation(tester):
+    """Test that the client retransmits a message if CONFIRM is not received and also Error when client dont recieve CONFIRM."""
+    auth_and_reply(tester)
+
+    # Receive AUTH, but DO NOT confirm it
+    tester.send_confirm = False
+    tester.execute("Hello!")
+    sleep(2)
+    stdout = tester.get_stdout()
+    print(stdout)
+    assert any(
+        ["ERROR: " in line for line in stdout.split("\n")]
+    ), "Output does not match expected 'ERROR: ' output."
+    
+    
+    
+
+@testcase
 def udp_server_err1(tester):
     """Test that the program handles an ERR message from the server correctly while waiting for REPLY."""
     tester.start_server("udp", 4567)
@@ -1020,6 +1038,17 @@ def udp_auth_err(tester):
 
 # PART 3: TCP
 
+@testcase
+def tcp_sigint(tester):
+    """Test that the program handles SIGINT correctly."""
+    tcp_auth_and_reply(tester)
+
+    # Send SIGINT signal
+    tester.send_signal(signal.SIGINT)
+
+    # Expect BYE message
+    message = tester.receive_message()
+    assert message == "BYE FROM c\r\n", "Incoming message does not match expected BYE message after SIGINT."
 
 @testcase
 def tcp_server_bye(tester):
@@ -1105,6 +1134,28 @@ def tcp_multiple_messages_single_segment(tester):
 
 
 @testcase
+def tcp_single_message_multiple_segments2(tester):
+    """Test receiving a single message split across multiple TCP segments."""
+    tcp_auth_and_reply(tester)
+
+    tester.send_message("M") 
+    sleep(0.2) # Short delay
+    tester.send_message("SG ") 
+    sleep(0.2) # Short delay
+    tester.send_message("FR") 
+    sleep(0.2) # Short delay
+    tester.send_message("OM ser") 
+    sleep(0.2) # Short delay
+    tester.send_message("ve") 
+    sleep(0.2) # Short delay
+    tester.send_message("r I") 
+    sleep(0.2) # Short delay
+    tester.send_message("S okeyBroChill\r\n") # Send second part
+
+    sleep(0.2)
+    stdout = tester.get_stdout()
+    assert "server: okeyBroChill" in stdout, "Expected reassembled message in output."
+    
 def tcp_single_message_multiple_segments(tester):
     """Test receiving a single message split across multiple TCP segments."""
     tcp_auth_and_reply(tester)
@@ -1116,7 +1167,22 @@ def tcp_single_message_multiple_segments(tester):
     sleep(0.2)
     stdout = tester.get_stdout()
     assert "server: part1part2" in stdout, "Expected reassembled message in output."
+    
+@testcase
+def tcp_receive_two_messages_within_3_segments(tester):
+    tcp_auth_and_reply(tester)
 
+    tester.send_message("MSG FROM teSter ") 
+    sleep(0.2) # Short delay
+    tester.send_message("IS message1\r\nMSG FROM teSte") 
+    sleep(0.2) # Short delay
+    tester.send_message(" IS message2\r\n") 
+    sleep(0.2)
+    stdout = tester.get_stdout()
+    assert "teSter: message1\nteSte: message2" in stdout, "Expected reassembled message in output."
+    
+    
+    
 @testcase
 def tcp_hello(tester):
     """Test that the program does not accept any message commands before the user is authenticated."""
@@ -1524,6 +1590,41 @@ def tcp_auth_err(tester):
     # message = tester.receive_message()
     # assert message == "BYE FROM c\r\n", "Incoming message does not match expected BYE message."
 
+@testcase
+def tcp_grammar_is_case_insensitive(tester):
+    """Test verifies that TCP grammar is case-insensitive for REPLY, MSG, and ERR server packets."""
+    
+    # Start mock TCP server and initialize client
+    tester.start_server("tcp", 4567)
+    tester.setup(args=["-t", "tcp", "-s", "localhost", "-p", "4567"])
+    tester.execute("/auth a b c")
+
+    # Validate that AUTH command is sent correctly
+    message = tester.receive_message()
+    assert message == "AUTH a AS c USING b\r\n", "AUTH message mismatch."
+
+    # 1. Send a mixed-case REPLY message
+    tester.send_message("rEpLy oK is authenticated\r\n")
+    sleep(0.2)
+    stdout = tester.get_stdout()
+    assert any("Action Success: authenticated" in line for line in stdout.split("\n")), \
+        "Client did not report successful reply."
+
+    # 2. Send a mixed-case MSG message
+    tester.send_message("mSg fRoM teSter Is message\r\n")
+    sleep(0.2)
+    stdout = tester.get_stdout()
+    assert any("teSter: message" in line for line in stdout.split("\n")), \
+        "Client did not receive expected message."
+
+    # 3. Send a mixed-case ERR message
+    tester.send_message("eRR FrOm teSter iS message\r\n")
+    sleep(0.2)
+    stdout = tester.get_stdout()
+    assert any("ERROR FROM teSter: message" in line for line in stdout.split("\n")), \
+        "Client did not report expected error message."
+
+    
 
 ### END TEST CASES ###
 

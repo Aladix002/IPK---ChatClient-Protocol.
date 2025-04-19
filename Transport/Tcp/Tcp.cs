@@ -21,7 +21,7 @@ public class Tcp : IChatClient
         _receiver = new TcpReceiver(_stateManager);
     }
     // https://learn.microsoft.com/en-us/dotnet/api/system.net.sockets.networkstream.writeasync
-    public async Task RunAsync()
+    public async Task Run()
     {
         _socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
         _socket.Connect(_args.Ip, _args.Port);

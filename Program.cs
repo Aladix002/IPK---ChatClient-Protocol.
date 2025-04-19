@@ -20,11 +20,9 @@ class Program
             Environment.Exit(0);
         };
 
-        // Show help if only -h or --help is passed
         if (args.Length == 1 && (args[0] == "-h" || args[0] == "--help"))
         {
-            new Parser(with => with.HelpWriter = Console.Out)
-                .ParseArguments<Arguments>(new[] { "--help" });
+            var _ = Parser.Default.ParseArguments<Arguments>(args);
             return 0;
         }
 
@@ -62,7 +60,7 @@ class Program
                                 return 1;
                         }
 
-                        await client.RunAsync();
+                        await client.Run();
                         return 0;
                     }
                     catch (Exception ex)

@@ -18,20 +18,18 @@ public class UdpReceiver
 
     public async Task ReceiveLoopAsync()
     {
-        while (UdpState.GetState() != State.end)
+        while (UdpStateManager.GetState() != State.end)
         {
             try
             {
                 var incoming = await _client.ReceiveAsync();
                 var buffer = incoming.Buffer;
                 ushort id = UdpConfirmHelper.ReadMessageId(buffer);
-                UdpState.UpdateMessageIdIfNeeded(id);
+                UdpStateManager.UpdateMessageIdIfNeeded(id);
 
-                if (UdpState.IsDuplicate(id))
-                {
-                    await UdpConfirmHelper.SendConfirmIfNeeded(_client, buffer, incoming.RemoteEndPoint);
-                    continue;
-                }
+                await UdpConfirmHelper.SendConfirmIfNeeded(_client, buffer, incoming.RemoteEndPoint);
+
+                if (UdpStateManager.IsDuplicate(id)) continue;
 
                 MessageType type = (MessageType)buffer[0];
 
@@ -40,8 +38,6 @@ public class UdpReceiver
                     var msg = Msg.FromBytes(buffer);
                     Console.WriteLine($"{msg.DisplayName}: {msg.MessageContents}");
                 }
-
-                await UdpConfirmHelper.SendConfirmIfNeeded(_client, buffer, incoming.RemoteEndPoint);
             }
             catch { break; }
         }

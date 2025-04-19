@@ -3,7 +3,7 @@ using System.Threading;
 
 namespace Transport
 {
-public static class UdpState
+public static class UdpStateManager
 {
     private static ushort _messageId = 0;
     private static HashSet<ushort> _receivedIds = new();
