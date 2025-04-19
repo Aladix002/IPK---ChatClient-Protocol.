@@ -41,6 +41,8 @@ UDP je protokol, ktorý nenadväzuje spojenie, takže sa správy pošlu rýchlej
 
 ## Štruktúra aplikácie
 
+![UDP Client UML](Doc/UML.PNG)
+
 Popis priečinkov, hlavných tried a ich úlohy. UML Diagram 
 
 ---
@@ -134,11 +136,6 @@ Triedy majú metódy:
 - Testovanie rôznych príkazov a výstupov na CLI
 - Sledovanie komunikácie v aplikácii Wireshark
 
-### Vstupy a výstupy
-
-
-
----
 
 ## Známe obmedzenia a nedostatky
 
