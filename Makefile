@@ -2,7 +2,7 @@ PROJECT_NAME = IPK25-CHAT
 BUILD_DIR := bin
 OUTPUT_NAME := IPK25-CHAT
 CS_PROJ := IPK25-CHAT.csproj
-LAUNCHER_NAME := ipk25-chat
+LAUNCHER_NAME := ipk25chat-client
 
 all: build launcher
 
