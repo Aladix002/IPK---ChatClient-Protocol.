@@ -49,7 +49,7 @@ UDP je protokol, ktorý nenadväzuje spojenie, takže sa správy pošlu rýchlej
 ## Štruktúra aplikácie
 **UML diagram s architektúrou tried rozdelenou na TCP a UDP vetvu:**
 
-![UDP Client UML](Doc/UML.PNG)
+![UDP Client UML](Doc/UML.png)
 
 
 ## Implementácia aplikácie
@@ -210,6 +210,8 @@ Rename Wireshark:
 Ukončenie Ctrl + C pošle BYE a skončí aplikáciu.
 
 ### Testovanie UDP Varianty
+
+
 
 
 ## Známe obmedzenia a nedostatky

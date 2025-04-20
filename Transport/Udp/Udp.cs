@@ -69,7 +69,6 @@ public class Udp : IChatClient
                 continue;
             }
 
-
             if (input.StartsWith("/rename "))
             {
                 var tokens = input.Split(' ', StringSplitOptions.RemoveEmptyEntries);
@@ -94,7 +93,7 @@ public class Udp : IChatClient
                     var join = new Join { ChannelId = tokens[1], DisplayName = _userDisplayName ?? "?" };
                     ushort joinId = GetNextMessageId();
                     byte[] joinBytes = join.ToBytes(joinId);
-                    if (!await SendWithConfirm(joinBytes, _dynamicServerEP!, joinId)) continue;
+                    if (!await UdpConfirmHelper.SendWithConfirm(_client, joinBytes, _dynamicServerEP!, joinId, _args)) continue;
                 }
                 continue;
             }
@@ -120,7 +119,7 @@ public class Udp : IChatClient
             var msg = new Msg { DisplayName = _userDisplayName ?? "?", MessageContents = input };
             ushort msgId = GetNextMessageId();
             byte[] msgBytes = msg.ToBytes(msgId);
-            await SendWithConfirm(msgBytes, _dynamicServerEP!, msgId);
+            await UdpConfirmHelper.SendWithConfirm(_client, msgBytes, _dynamicServerEP!, msgId, _args);
         }
     }
 
@@ -147,13 +146,15 @@ public class Udp : IChatClient
             ushort authId = GetNextMessageId();
             byte[] authBytes = auth.ToBytes(authId);
 
-            if (!await SendWithConfirm(authBytes, _serverEP!, authId)) return;
+            if (!await UdpConfirmHelper.SendWithConfirm(_client!, authBytes, _serverEP!, authId, _args)) return;
 
             while (true)
             {
                 var replyRes = await _client!.ReceiveAsync();
                 var buffer = replyRes.Buffer;
                 ushort id = ReadMessageId(buffer);
+
+                _messageId = Math.Max(_messageId, (ushort)(id + 1));
                 if (_receivedIds.Contains(id)) continue;
 
                 if ((MessageType)buffer[0] == MessageType.REPLY)
@@ -162,8 +163,7 @@ public class Udp : IChatClient
                     _receivedIds.Add(reply.MessageId);
                     _dynamicServerEP = replyRes.RemoteEndPoint;
 
-                    // Always send CONFIRM before handling the result
-                    await SendConfirm(reply.MessageId);
+                    await UdpConfirmHelper.SendConfirm(_client, reply.MessageId, replyRes.RemoteEndPoint);
 
                     if (reply.Result)
                     {
@@ -173,7 +173,7 @@ public class Udp : IChatClient
                     else
                     {
                         Console.WriteLine($"Action Failure: {reply.MessageContent}");
-                        return; // early return, but confirm is already sent
+                        return;
                     }
                     break;
                 }
@@ -183,11 +183,14 @@ public class Udp : IChatClient
             {
                 var msgRes = await _client!.ReceiveAsync();
                 var buffer = msgRes.Buffer;
+                ushort id = ReadMessageId(buffer);
+                _messageId = Math.Max(_messageId, (ushort)(id + 1));
+
                 if ((MessageType)buffer[0] == MessageType.MSG)
                 {
                     var msg = Msg.FromBytes(buffer);
                     Console.WriteLine($"{msg.DisplayName}: {msg.MessageContents}");
-                    await SendConfirm(msg.MessageId);
+                    await UdpConfirmHelper.SendConfirm(_client, msg.MessageId, msgRes.RemoteEndPoint);
                     SetState(State.open);
                     break;
                 }
@@ -203,6 +206,7 @@ public class Udp : IChatClient
             var buffer = incoming.Buffer;
             var from = incoming.RemoteEndPoint;
             ushort id = ReadMessageId(buffer);
+            _messageId = Math.Max(_messageId, (ushort)(id + 1));
 
             if (_receivedIds.Contains(id)) continue;
 
@@ -212,7 +216,7 @@ public class Udp : IChatClient
                 Console.WriteLine($"{msg.DisplayName}: {msg.MessageContents}");
             }
 
-            await SendConfirm(id, from);
+            await UdpConfirmHelper.SendConfirm(_client, id, from);
             _receivedIds.Add(id);
         }
     }
@@ -233,38 +237,6 @@ public class Udp : IChatClient
         _stateLock.ReleaseMutex();
     }
 
-    private async Task<bool> SendWithConfirm(byte[] message, IPEndPoint target, ushort msgId)
-    {
-        for (int attempt = 1; attempt <= _args.MaxRetries; attempt++)
-        {
-            await _client!.SendAsync(message, message.Length, target);
-            var start = DateTime.UtcNow;
-            while ((DateTime.UtcNow - start).TotalMilliseconds < _args.UdpTimeout)
-            {
-                if (_client.Available > 0)
-                {
-                    var result = await _client.ReceiveAsync();
-                    var data = result.Buffer;
-                    if (data[0] == (byte)MessageType.CONFIRM)
-                    {
-                        var confirm = Confirm.FromBytes(data);
-                        if (confirm.RefMessageId == msgId) return true;
-                    }
-                }
-                await Task.Delay(10);
-            }
-        }
-        Console.WriteLine($"ERR: No confirm received for ID={msgId}.");
-        return false;
-    }
-
-    private async Task SendConfirm(ushort refId, IPEndPoint? target = null)
-    {
-        var confirm = new Confirm { RefMessageId = refId };
-        var confirmBytes = confirm.ToBytes(0);
-        await _client!.SendAsync(confirmBytes, confirmBytes.Length, target ?? _dynamicServerEP!);
-    }
-
     private ushort ReadMessageId(byte[] data)
     {
         return data.Length >= 3 ? BinaryPrimitives.ReadUInt16BigEndian(data.AsSpan(1, 2)) : (ushort)0;
@@ -280,6 +252,8 @@ public class Udp : IChatClient
     }
 }
 }
+
+
 
 
 
