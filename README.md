@@ -145,7 +145,13 @@ Bližšie informácie o implementácii možno pozrieť priamo v spomínaných s�
 
 ### Testovanie TCP Varianty
 
+#### Automatické testy
 
+![TCP aut test](Doc/tcpautomatic.png)
+
+Bol odtránený test na SIGINT, nakoľko mi neprechádzal, ale manuálne to fungovalo keď som to testoval.
+
+#### Testy v konzole a odchytenie Wiresharku:
 
 Chyba pri poslaní správy bez autentikácie:
 ```bash
@@ -211,7 +217,59 @@ Ukončenie Ctrl + C pošle BYE a skončí aplikáciu.
 
 ### Testovanie UDP Varianty
 
+V UDP variante bola implementovaná len základná funkcionalita a chybové stavy, preto prikladám 
+#### Výstupy z konzoly a Wiresharku
 
+Posielanie správy pred autentikáciou v konzole:
+
+```bash
+aaa
+ERROR: You must authenticate first
+```
+
+Autentikácia v konzole:
+```bash
+/auth xbotlo01 2c38aeb2-300e-4825-9985-fcaefab0de84 peto
+Action Success: Authentication successful.
+Server: peto has joined `discord.general` via UDP.
+```
+
+Autentikácia vo Wiresharku:
+
+![UDP auth](Doc/udpauth.png)
+
+Posielanie správy konzola:
+```bash
+ahojte ja som peto cmorik
+Server: nelze has joined `discord.general` via UDP.
+```
+Posielanie správy Wireshark:
+
+![UDP msg](Doc/udpmsg.png)
+
+Join konzola:
+```bash
+/join discord.test
+Server: peto has switched from `discord.general` to `discord.test`.
+```
+
+Join Wireshark:
+![UDP join](Doc/udpjoin.png)
+
+Rename konzola:
+```bash
+/rename petostasak
+Renamed to 'petostasak'
+```
+
+Ukončenie Ctrl + C pošle BYE a skončí aplikáciu:
+
+```bash
+dovidenia
+aladix@aladix-Aspire:~/Desktop/FIT/ipk/ipk25/IPK25-CHAT$ 
+```
+
+![UDP bye](Doc/udpbye.png)
 
 
 ## Známe obmedzenia a nedostatky
@@ -229,7 +287,8 @@ https://git.fit.vutbr.cz/NESFIT/IPK-Projects/src/branch/master/Project_2#udp-tra
 [3] Microsoft. *Designing and viewing classes and types (Class Designer)* [online]. Available at:  
 https://learn.microsoft.com/en-us/visualstudio/ide/class-designer/designing-and-viewing-classes-and-types?view=vs-2022 (Použité na vytvorenie UML diagramu)
 
-
+[4] Vlad6422. *VUT_IPK_CLIENT_TESTS – Testovací framework pre projekt IPK25-CHAT* [online]. Available at:  
+https://github.com/Vlad6422/VUT_IPK_CLIENT_TESTS (Vyššie spomenuté automatické testy)
 
 
 
