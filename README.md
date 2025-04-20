@@ -124,24 +124,92 @@ Bližšie informácie o implementácii možno pozrieť priamo v spomínaných s�
 
 ## Testovanie a overenie funkcionality
 
-### Čo sa testovalo
+#### Čo sa testovalo
 
 - Správna inicializácia klienta cez CLI
 - Odozva na príkazy užívateľa
 - Správy na výstupe podľa špecifikácie
 - Odchyt chýb a výpis 
 
-### Prečo sa testovalo
+#### Prečo sa testovalo
 
 - Správne fungovanie príkazov 
 - Zaručenie spoľahlivého prenosu v UDP variante
 - Dodržanie postupu komunikácie
 
-### Ako sa testovalo
+### # Ako sa testovalo
 
 - Referenčný server `anton5.fit.vutbr.cz`
 - Testovanie rôznych príkazov a výstupov na CLI
 - Sledovanie komunikácie v aplikácii Wireshark
+
+### Testovanie TCP Varianty
+
+
+
+Chyba pri poslaní správy bez autentikácie:
+```bash
+$ ./ipk25chat-client -t tcp -s anton5.fit.vutbr.cz
+aaa
+ERROR: You must be authenticated before sending messages
+```
+
+Pomocná správa:
+```bash
+/help
+Available commands:
+/auth <username> <secret> <displayName>
+/join <channelId>
+/rename <displayName>
+/help
+```
+
+Neúspešná autentikácia konzola:
+```bash
+/auth a b c 
+Action Failure: Authentication failed - Provided user secret is not valid.
+```
+
+Neúspešná autentikácia Wireshark:
+![TCP autentikacia nok](Doc/tcpauthfail.png)
+
+Autentikácia koznola:
+```bash
+$ ./ipk25chat-client -t tcp -s anton5.fit.vutbr.cz
+/auth xbotlo01 2c38aeb2-300e-4825-9985-fcaefab0de84 
+Action Success: Authentication successful.
+Server: petocmorik has joined `discord.general` via TCP.
+Server: steve has joined `discord.general` via UDP.
+```
+Autentikácia Wireshark:
+
+![TCP autentikacia](Doc/tcpauth.png)
+
+Join konzola a správa:
+```bash
+/join discord.test
+Action Success: Channel discord.test successfully joined.
+Server: petocmorik has switched from `discord.general` to `discord.test`.
+```
+
+Join Wireshark a správa:
+
+![TCP join and msg](Doc/tcp_join_msg.png)
+
+Rename koznola:
+```bash
+/rename mekyzbirka
+Renamed to mekyzbirka
+mam rad tien jabloni 
+aladix@aladix-Aspire:~/Desktop/FIT/ipk/ipk25/IPK25-CHAT$
+```
+Rename Wireshark:
+
+![TCP rename](Doc/tcprename.png)
+
+Ukončenie Ctrl + C pošle BYE a skončí aplikáciu.
+
+### Testovanie UDP Varianty
 
 
 ## Známe obmedzenia a nedostatky
