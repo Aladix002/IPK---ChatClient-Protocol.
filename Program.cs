@@ -11,12 +11,12 @@ class Program
     {
         IChatClient? client = null;
 
-        // Ctrl+C shutdown hook
+        // Ctrl+C zastavenie
         Console.CancelKeyPress += async (sender, e) =>
         {
             e.Cancel = true;
             if (client != null)
-                await client.DisconnectAsync();
+                await client.Stop();
             Environment.Exit(0);
         };
 
@@ -26,7 +26,7 @@ class Program
             return 0;
         }
 
-        // Parse and run client based on protocol
+        //parsuje a spusti klienta podla argumentov
         return await new Parser(with => with.HelpWriter = Console.Out)
             .ParseArguments<Arguments>(args)
             .MapResult(
@@ -60,7 +60,7 @@ class Program
                                 return 1;
                         }
 
-                        await client.Run();
+                        await client.Run(); //spustanie klienta
                         return 0;
                     }
                     catch (Exception ex)
@@ -72,6 +72,7 @@ class Program
                 errs => Task.FromResult(1));
     }
 }
+
 
 
 

@@ -8,60 +8,58 @@ using Message;
 
 namespace Transport
 {
-public static class UdpConfirmHelper
-{
-    private static readonly ConcurrentDictionary<ushort, bool> ConfirmedMessages = new();
-
-    public static async Task<bool> SendWithConfirm(UdpClient client, byte[] message, IPEndPoint target, ushort msgId, Arguments args)
+    //retry a potvrdenia
+    public static class UdpConfirmHelper
     {
-        ConfirmedMessages.TryRemove(msgId, out _); 
-        
-        for (int attempt = 1; attempt <= args.MaxRetries; attempt++)
-        {
-            await client.SendAsync(message, message.Length, target);
-            var startTime = DateTime.UtcNow;
+        private static readonly ConcurrentDictionary<ushort, bool> Confirmed = new();
 
-            while ((DateTime.UtcNow - startTime).TotalMilliseconds < args.UdpTimeout)
+        public static async Task<bool> SendWithConfirm(UdpClient c, byte[] msg, IPEndPoint dst, ushort id, Arguments a)
+        {
+            Confirmed.TryRemove(id, out _);
+
+            for (int attempt = 1; attempt <= a.MaxRetries; attempt++)
             {
-                if (ConfirmedMessages.ContainsKey(msgId))
+                await c.SendAsync(msg, msg.Length, dst);
+                var start = DateTime.UtcNow;
+                while ((DateTime.UtcNow - start).TotalMilliseconds < a.UdpTimeout)
                 {
-                    return true;
+                    if (Confirmed.ContainsKey(id)) return true;
+                    await Task.Delay(a.UdpTimeout);
                 }
-                await Task.Delay(10);
+            }
+            Console.WriteLine($"ERR: No confirm for {id}");
+            return false;
+        }
+
+        public static async Task SendConfirmIfNeeded(UdpClient c, byte[] buf, IPEndPoint from)
+        {
+            MessageType t = (MessageType)buf[0];
+            ushort id = ReadMessageId(buf);
+
+            if (t == MessageType.CONFIRM)
+            {
+                var conf = Confirm.FromBytes(buf);
+                Confirmed[conf.RefMessageId] = true; // uklada ze prisiel conf
+                return;
+            }
+
+            if (UdpStateManager.IsDuplicate(id)) return; 
+
+            if (t is MessageType.REPLY or MessageType.MSG or MessageType.PING or MessageType.ERR)
+            {
+                UdpStateManager.MarkReceived(id);
+                // Posli CONFIRM
+                var conf = new Confirm { RefMessageId = id };
+                await c.SendAsync(conf.ToBytes(0), 3, from);
             }
         }
-        Console.WriteLine($"ERR: No confirm received for ID={msgId}.");
-        return false;
-    }
 
-    public static async Task SendConfirmIfNeeded(UdpClient client, byte[] buffer, IPEndPoint from)
-    {
-        MessageType type = (MessageType)buffer[0];
-        ushort msgId = ReadMessageId(buffer);
-
-        if (type == MessageType.CONFIRM)
+        //vybera ID z bytov
+        public static ushort ReadMessageId(byte[] d)
         {
-            var confirm = Confirm.FromBytes(buffer);
-            ConfirmedMessages[confirm.RefMessageId] = true;
-            return;
-        }
-
-        if (UdpStateManager.IsDuplicate(msgId)) return;
-
-        if (type is MessageType.REPLY or MessageType.MSG or MessageType.PING or MessageType.ERR)
-        {
-            UdpStateManager.MarkReceived(msgId);
-
-            var confirm = new Confirm { RefMessageId = msgId };
-            byte[] confirmBytes = confirm.ToBytes(0);
-            await client.SendAsync(confirmBytes, confirmBytes.Length, from);
+            if (d.Length < 3) return 0;
+            return BinaryPrimitives.ReadUInt16BigEndian(d.AsSpan(1, 2));
         }
     }
+}
 
-    public static ushort ReadMessageId(byte[] data)
-    {
-        if (data.Length < 3) return 0;
-        return BinaryPrimitives.ReadUInt16BigEndian(data.AsSpan(1, 2));
-    }
-}
-}

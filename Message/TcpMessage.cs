@@ -2,14 +2,15 @@ namespace Message;
 
 public class TcpMessage
 {
-    public MessageType Type { get; init; }
-    public string? Username { get; init; }
-    public string? Secret { get; init; } 
-    public string? ChannelId { get; init; }
-    public string? DisplayName { get; init; }
-    public string? MessageContents { get; init; }
-    public bool Result { get; init; }
+    public MessageType Type { get; init; }   
+    public string? Username { get; init; }    
+    public string? Secret { get; init; }       
+    public string? ChannelId { get; init; }       
+    public string? DisplayName { get; init; }    
+    public string? MessageContents { get; init; }   
+    public bool Result { get; init; }               
 
+    //textova reprezentacia protokolu na TcpMessage
     public static TcpMessage ParseTcp(string line)
     {
         if (line.StartsWith("AUTH"))
@@ -26,7 +27,6 @@ public class TcpMessage
                 Secret = parts[5]
             };
         }
-
         if (line.StartsWith("JOIN"))
         {
             var parts = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
@@ -43,7 +43,7 @@ public class TcpMessage
 
         if (line.StartsWith("MSG"))
         {
-            var parts = line.Split(" IS ", 2);
+            var parts = line.Split(" IS ", 2);// rozdeli prvy vyskyt IS 
             return new TcpMessage
             {
                 Type = MessageType.MSG,
@@ -63,13 +63,14 @@ public class TcpMessage
             };
         }
 
+        // REPLY OK|NOK IS <msg>
         if (line.StartsWith("REPLY"))
         {
             var parts = line.Split(' ', 4);
             return new TcpMessage
             {
                 Type = MessageType.REPLY,
-                Result = parts[1] == "OK",
+                Result = parts[1] == "OK",//ture ak ok, inak nok
                 MessageContents = parts[3]
             };
         }
@@ -83,22 +84,20 @@ public class TcpMessage
                 DisplayName = displayName
             };
         }
+
         throw new ArgumentException("Unsupported TCP message format.");
     }
 
-
     // https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/operators/switch-expression
-    public string ToTcpString()
+    public string ToTcpString() => Type switch
     {
-        return Type switch
-        {
-            MessageType.AUTH => $"AUTH {Username} AS {DisplayName} USING {Secret}\r\n",
-            MessageType.JOIN => $"JOIN {ChannelId} AS {DisplayName}\r\n",
-            MessageType.MSG => $"MSG FROM {DisplayName} IS {MessageContents}\r\n",
-            MessageType.ERR => $"ERR FROM {DisplayName} IS {MessageContents}\r\n",
-            MessageType.REPLY => $"REPLY {(Result ? "OK" : "NOK")} IS {MessageContents}\r\n",
-            MessageType.BYE => $"BYE FROM {DisplayName}\r\n",
-            _ => throw new InvalidOperationException("Unsupported message type")
-        };
-    }
+        MessageType.AUTH   => $"AUTH {Username} AS {DisplayName} USING {Secret}\r\n",
+        MessageType.JOIN   => $"JOIN {ChannelId} AS {DisplayName}\r\n",
+        MessageType.MSG    => $"MSG FROM {DisplayName} IS {MessageContents}\r\n",
+        MessageType.ERR    => $"ERR FROM {DisplayName} IS {MessageContents}\r\n",
+        MessageType.REPLY  => $"REPLY {(Result ? "OK" : "NOK")} IS {MessageContents}\r\n",
+        MessageType.BYE    => $"BYE FROM {DisplayName}\r\n",
+        _ => throw new InvalidOperationException("Unsupported message type")
+    };
 }
+

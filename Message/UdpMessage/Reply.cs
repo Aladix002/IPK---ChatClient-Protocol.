@@ -9,8 +9,6 @@ public class Reply
 {
 
     public MessageType MessageType => MessageType.REPLY;
-
-
     public required ushort MessageId { get; init; }
 
 
@@ -18,8 +16,6 @@ public class Reply
 
 
     public required ushort RefMessageId { get; init; }
-
-
     public required string MessageContent { get; init; }
 
 

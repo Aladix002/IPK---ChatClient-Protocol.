@@ -1,10 +1,7 @@
 using CommandLine;
 
-/*
- * Minimal argument definition
- * Adapted from https://github.com/commandlineparser/commandline
- * Record holds necessary CLI parameters for the chat client and their default values
- */
+
+ //Spracovanie argumentov, https://github.com/commandlineparser/commandline
 public record Arguments
 {
     [Option('t', Required = true, HelpText = "Transport protocol (tcp or udp)")]

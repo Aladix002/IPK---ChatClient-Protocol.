@@ -11,7 +11,7 @@ namespace Transport
         private readonly Arguments _args;
         private readonly IPAddress _serverIp;
         private UdpClient? _client;
-        private IPEndPoint? _dynamicServerEP;
+        private IPEndPoint? _dynamicServerEP; //auth reply z noveho portu
         private bool _running = true;
 
         public Udp(Arguments args, IPAddress serverIp)
@@ -24,10 +24,11 @@ namespace Transport
         {
             _client = new UdpClient(new IPEndPoint(IPAddress.Any, 0));
             var serverEP = new IPEndPoint(_serverIp, _args.Port);
-
+            //prijimanie sprav na pozadi
             var receiver = new UdpReceiver(_client, _args);
             _ = Task.Run(() => receiver.ReceiveLoopAsync());
 
+             //nacita prikazy z konzoly
             while (_running)
             {
                 var input = Console.ReadLine();
@@ -54,6 +55,7 @@ namespace Transport
 
                 switch (command)
                 {
+                    //auth cowritten with https://chatgpt.com/ according to specification
                     case "/auth" when currentState == State.start:
                         if (tokens.Length != 4)
                         {
@@ -72,12 +74,13 @@ namespace Transport
                         ushort authId = UdpStateManager.GetNextMessageId();
                         byte[] authBytes = auth.ToBytes(authId);
 
+                        //cakam na confirm authu
                         if (!await UdpConfirmHelper.SendWithConfirm(_client, authBytes, serverEP, authId, _args))
                         {
                             Console.WriteLine("ERROR: No confirm for AUTH.");
                             break;
                         }
-
+                        // cakam na reply a msg
                         while (true)
                         {
                             var replyRes = await _client.ReceiveAsync();
@@ -94,7 +97,7 @@ namespace Transport
                             Console.WriteLine($"Action Success: {reply.MessageContent}");
                             var confirm = new Confirm { RefMessageId = reply.MessageId };
                             await _client.SendAsync(confirm.ToBytes(0), 3, replyRes.RemoteEndPoint);
-
+                            //uvodna msg
                             while (true)
                             {
                                 var msgRes = await _client.ReceiveAsync();
@@ -155,6 +158,7 @@ namespace Transport
                                 Console.WriteLine("ERROR: You must authenticate first");
                             }
                         }
+                        //msg spravy 
                         else if (currentState == State.open)
                         {
                             var msg = new Msg
@@ -174,8 +178,9 @@ namespace Transport
                 }
             }
         }
-
-        public async Task DisconnectAsync()
+        
+        //bye a koniec klienta
+        public async Task Stop()
         {
             if (_dynamicServerEP != null && _client != null && UdpStateManager.GetState() == State.open)
             {

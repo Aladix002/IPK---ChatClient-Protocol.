@@ -14,7 +14,7 @@ public class Confirm
     {
         var result = new byte[3];
         result[0] = (byte)MessageType.CONFIRM; 
-        BinaryPrimitives.WriteUInt16BigEndian(result.AsSpan(1, 2), RefMessageId);
+        BinaryPrimitives.WriteUInt16BigEndian(result.AsSpan(1, 2), RefMessageId); //ref id,navrhnute od https://chatgpt.com, dalej https://learn.microsoft.com/en-us/dotnet/api/microsoft.extensions.primitives.stringsegment.asspan?view=net-9.0-pp
         return result;
     }
 

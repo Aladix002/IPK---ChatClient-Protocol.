@@ -26,14 +26,13 @@ public class Tcp : IChatClient
         _socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
         _socket.Connect(_args.Ip, _args.Port);
 
-        var listen = _receiver.ListenForServerMessages(_socket);
-        var input = _commandHandler.HandleUserInput(_socket, _args);
+        var listen = _receiver.ListenForServerMessages(_socket); // prijem zo servera
+        var input = _commandHandler.HandleUserInput(_socket, _args); // posielanie na server
 
-        await Task.WhenAny(listen, input);
-        await _stateManager.DisconnectAsync(_socket);
+        await Task.WhenAny(listen, input); // caka na eof alebo bye 
+        await _stateManager.Stop(_socket);
     }
-
-    public Task DisconnectAsync() => _stateManager.DisconnectAsync(_socket);
+    public Task Stop() => _stateManager.Stop(_socket); // ctrl c volanie z mainu
 }
 }
 

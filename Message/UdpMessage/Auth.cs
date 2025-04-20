@@ -12,16 +12,19 @@ public class Auth
     public required string DisplayName { get; init; }
     public required string Secret { get; init; }
 
+    //regexy, generoval: https://chatgpt.com/
     private static readonly Regex ValidUsername = new("^[a-zA-Z0-9_-]{1,20}$", RegexOptions.Compiled);
     private static readonly Regex ValidDisplayName = new(@"^[\x21-\x7E]{1,20}$", RegexOptions.Compiled);
     private static readonly Regex ValidSecret = new("^[a-zA-Z0-9_-]{1,128}$", RegexOptions.Compiled);
 
+    //kontrola s regexom
     private static void RequireMatch(string value, Regex regex, string name)
     {
         if (!regex.IsMatch(value))
             throw new ArgumentException($"Invalid {name}");
     }
 
+    //kontrola vstupov
     private void Validate()
     {
         RequireMatch(Username, ValidUsername, nameof(Username));
@@ -29,6 +32,7 @@ public class Auth
         RequireMatch(Secret, ValidSecret, nameof(Secret));
     }
 
+    //serializacia auth spravy
     public byte[] ToBytes(ushort messageId)
     {
         Validate();
@@ -52,6 +56,7 @@ public class Auth
         return result;
     }
 
+    //kopiruje byty a prida \0 na koniec
     private static int CopyWithNullTerminator(byte[] source, byte[] destination, int offset)
     {
         Array.Copy(source, 0, destination, offset, source.Length);

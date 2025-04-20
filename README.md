@@ -7,8 +7,16 @@
 Cieľom projektu bola implementácia klientskej aplikácie, ktorá komunikuje so serverom cez IPK25-CHAT protokol. Aplikácia môže na základe vybraných argumentov využívať transportný protokol TCP aj UDP.
 
 ## Ako sa pri riešení projektu využilo LLM
+Pre vypracovanie projektu som používal aj Large Language Model - ChatGPT nasledujúcimi spôsobmi:
 
----
+- vygenerovanie šablóny pre túto dokumentáciu, sformátovanie zdrojov a výstupov z konzoly pri testovaní
+- konzultácia pri návrhu tried a možnostiach .NETu pre tento projekt
+- pomoc pri reštruktualizácii kódu pre lepšiu čitateľnosť
+- tvorba Makefile
+- generovanie niektorých častí kódu ako alternatív k mojim riešeniam
+
+Výstupy LLM boli kontrolované a použité ako doplnkový, najmä konzultačný nástroj. 
+
 
 ## Obsah
 - [Krátke teoretické pozadie Transportu](#krátke-teoretické-pozadie)
@@ -18,7 +26,6 @@ Cieľom projektu bola implementácia klientskej aplikácie, ktorá komunikuje so
 - [Známe obmedzenia a nedostatky](#známe-obmedzenia-a-nedostatky)
 - [Zdroje a použité materiály](#zdroje-a-použité-materiály)
 
----
 
 ## Krátke teoretické pozadie UDP a TCP
 
@@ -40,12 +47,10 @@ UDP je protokol, ktorý nenadväzuje spojenie, takže sa správy pošlu rýchlej
 
 
 ## Štruktúra aplikácie
+**UML diagram s architektúrou tried rozdelenou na TCP a UDP vetvu:**
 
 ![UDP Client UML](Doc/UML.PNG)
 
-Popis priečinkov, hlavných tried a ich úlohy. UML Diagram 
-
----
 
 ## Implementácia aplikácie
 
@@ -115,6 +120,8 @@ Triedy majú metódy:
 - `FromBytes` pre parsovanie správy zo serveru.
 - `Auth` validuje vstupné reťazce cez regex
 
+Bližšie informácie o implementácii možno pozrieť priamo v spomínaných súboroch aj s komentármi.
+
 ## Testovanie a overenie funkcionality
 
 ### Čo sa testovalo
@@ -148,6 +155,12 @@ https://www.geeksforgeeks.org/differences-between-tcp-and-udp/ [cited 2025-04-19
 
 [2] NES@FIT VUT. *IPK Project 2: Client for a chat server using the IPK25-CHAT protocol* [online]. Available at:  
 https://git.fit.vutbr.cz/NESFIT/IPK-Projects/src/branch/master/Project_2#udp-transport-summarised [cited 2025-04-19].
+
+[3] Microsoft. *Designing and viewing classes and types (Class Designer)* [online]. Available at:  
+https://learn.microsoft.com/en-us/visualstudio/ide/class-designer/designing-and-viewing-classes-and-types?view=vs-2022 (Použité na vytvorenie UML diagramu)
+
+
+
 
 
 
