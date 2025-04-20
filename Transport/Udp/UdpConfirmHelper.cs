@@ -33,7 +33,7 @@ namespace Transport
                     await Task.Delay(10);
                 }
             }
-            return false;
+            return false;// neuspesne po vsetkych pokusoch
         }
 
         public static async Task SendConfirm(UdpClient client, ushort refId, IPEndPoint target)

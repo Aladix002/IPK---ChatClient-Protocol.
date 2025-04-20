@@ -267,6 +267,10 @@ aladix@aladix-Aspire:~/Desktop/FIT/ipk/ipk25/IPK25-CHAT$
 
 ## Známe obmedzenia a nedostatky
 
+- v UDP len základné fungovanie
+- v UDP opakujúce sa spŕavy s príkazmi
+- nedostatočne overené rôzne prípady u UDP 
+
 
 ---
 

@@ -25,14 +25,14 @@ public class Udp : IChatClient
     public Udp(Arguments args, IPAddress serverIp)
     {
         _args = args;
-        _serverIp = serverIp;
+        _serverIp = serverIp; 
     }
 
     public async Task Run()
     {
-        _client = new UdpClient(new IPEndPoint(IPAddress.Any, 0));
-        _serverEP = new IPEndPoint(_serverIp, _args.Port);
-        await RunClientSession();
+        _client = new UdpClient(new IPEndPoint(IPAddress.Any, 0)); // otvorenie lokalneho UDP portu
+        _serverEP = new IPEndPoint(_serverIp, _args.Port); // staticky port servera
+        await RunClientSession(); // hlavny loop
     }
 
     public async Task Stop()
@@ -42,32 +42,29 @@ public class Udp : IChatClient
             ushort byeId = GetNextMessageId();
             var bye = new Bye { DisplayName = _userDisplayName ?? "?" };
             byte[] byeBytes = bye.ToBytes(byeId);
-            await _client.SendAsync(byeBytes, byeBytes.Length, _dynamicServerEP);
+            await _client.SendAsync(byeBytes, byeBytes.Length, _dynamicServerEP); 
         }
 
         SetState(State.end);
         _client?.Close();
     }
 
+    // prepis stareho kodu na novu verziu s IChatClientom s ChatGPT https://chat.openai.com
     private async Task RunClientSession()
     {
         if (_client == null || _serverEP == null) return;
 
-        await Authenticate();
+        await Authenticate(); 
         if (_state != State.open) return;
 
-        _ = Task.Run(ReceiveLoop);
+        _ = Task.Run(ReceiveLoop); 
 
         while (true)
         {
             var input = Console.ReadLine();
             if (string.IsNullOrWhiteSpace(input)) continue;
 
-            if (input == "/help")
-            {
-                HandleHelp();
-                continue;
-            }
+            if (input == "/help") { HandleHelp(); continue; }
 
             if (input.StartsWith("/rename "))
             {
@@ -98,13 +95,7 @@ public class Udp : IChatClient
                 continue;
             }
 
-            if (input == "/help")
-            {
-                HandleHelp();
-                continue;
-            }
-
-            if (input.StartsWith("/"))
+            if (input.StartsWith("/")) 
             {
                 Console.WriteLine("ERROR: Unknown or disallowed command");
                 continue;
@@ -116,6 +107,7 @@ public class Udp : IChatClient
                 continue;
             }
 
+            //posielanie sprav 
             var msg = new Msg { DisplayName = _userDisplayName ?? "?", MessageContents = input };
             ushort msgId = GetNextMessageId();
             byte[] msgBytes = msg.ToBytes(msgId);
@@ -146,14 +138,15 @@ public class Udp : IChatClient
             ushort authId = GetNextMessageId();
             byte[] authBytes = auth.ToBytes(authId);
 
+
+            //cakanie na reply po auth
             if (!await UdpConfirmHelper.SendWithConfirm(_client!, authBytes, _serverEP!, authId, _args)) return;
 
-            while (true)
+            while (true) 
             {
                 var replyRes = await _client!.ReceiveAsync();
                 var buffer = replyRes.Buffer;
                 ushort id = ReadMessageId(buffer);
-
                 _messageId = Math.Max(_messageId, (ushort)(id + 1));
                 if (_receivedIds.Contains(id)) continue;
 
@@ -178,8 +171,8 @@ public class Udp : IChatClient
                     break;
                 }
             }
-
-            while (true)
+            //sprava od serveru po autentikacii
+            while (true) 
             {
                 var msgRes = await _client!.ReceiveAsync();
                 var buffer = msgRes.Buffer;
@@ -199,7 +192,7 @@ public class Udp : IChatClient
     }
 
     private async Task ReceiveLoop()
-    {
+    {   // dostava spravy od servera celu dobu
         while (_state != State.end)
         {
             var incoming = await _client!.ReceiveAsync();
@@ -207,7 +200,6 @@ public class Udp : IChatClient
             var from = incoming.RemoteEndPoint;
             ushort id = ReadMessageId(buffer);
             _messageId = Math.Max(_messageId, (ushort)(id + 1));
-
             if (_receivedIds.Contains(id)) continue;
 
             if ((MessageType)buffer[0] == MessageType.MSG)
@@ -216,7 +208,7 @@ public class Udp : IChatClient
                 Console.WriteLine($"{msg.DisplayName}: {msg.MessageContents}");
             }
 
-            await UdpConfirmHelper.SendConfirm(_client, id, from);
+            await UdpConfirmHelper.SendConfirm(_client, id, from); 
             _receivedIds.Add(id);
         }
     }
@@ -252,6 +244,7 @@ public class Udp : IChatClient
     }
 }
 }
+
 
 
 
