@@ -10,13 +10,15 @@ public class TcpMessage
     public string? MessageContents { get; init; }   
     public bool Result { get; init; }               
 
-    //textova reprezentacia protokolu na TcpMessage
+    // textova reprezentacia protokolu na TcpMessage
     public static TcpMessage ParseTcp(string line)
     {
-        if (line.StartsWith("AUTH"))
+        if (line.StartsWith("AUTH", StringComparison.OrdinalIgnoreCase))
         {
             var parts = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            if (parts.Length != 5 || parts[2] != "AS" || parts[4] != "USING")
+            if (parts.Length != 6 ||
+                !parts[2].Equals("AS", StringComparison.OrdinalIgnoreCase) ||
+                !parts[4].Equals("USING", StringComparison.OrdinalIgnoreCase))
                 throw new ArgumentException("Malformed AUTH");
 
             return new TcpMessage
@@ -27,10 +29,12 @@ public class TcpMessage
                 Secret = parts[5]
             };
         }
-        if (line.StartsWith("JOIN"))
+
+        if (line.StartsWith("JOIN", StringComparison.OrdinalIgnoreCase))
         {
             var parts = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            if (parts.Length != 4 || parts[2] != "AS")
+            if (parts.Length != 4 ||
+                !parts[2].Equals("AS", StringComparison.OrdinalIgnoreCase))
                 throw new ArgumentException("Malformed JOIN");
 
             return new TcpMessage
@@ -41,41 +45,56 @@ public class TcpMessage
             };
         }
 
-        if (line.StartsWith("MSG"))
+        if (line.StartsWith("MSG", StringComparison.OrdinalIgnoreCase))
         {
-            var parts = line.Split(" IS ", 2);// rozdeli prvy vyskyt IS 
+            var prefix = "MSG FROM ";
+            var splitIndex = line.IndexOf(" IS ", StringComparison.OrdinalIgnoreCase);
+            if (splitIndex == -1 || !line.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                throw new ArgumentException("Malformed MSG");
+
+            var displayName = line.Substring(prefix.Length, splitIndex - prefix.Length);
+            var content = line.Substring(splitIndex + 4);
             return new TcpMessage
             {
                 Type = MessageType.MSG,
-                DisplayName = parts[0].Substring("MSG FROM ".Length),
-                MessageContents = parts[1]
+                DisplayName = displayName,
+                MessageContents = content
             };
         }
 
-        if (line.StartsWith("ERR"))
+        if (line.StartsWith("ERR", StringComparison.OrdinalIgnoreCase))
         {
-            var parts = line.Split(" IS ", 2);
+            var prefix = "ERR FROM ";
+            var splitIndex = line.IndexOf(" IS ", StringComparison.OrdinalIgnoreCase);
+            if (splitIndex == -1 || !line.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                throw new ArgumentException("Malformed ERR");
+
+            var displayName = line.Substring(prefix.Length, splitIndex - prefix.Length);
+            var content = line.Substring(splitIndex + 4);
             return new TcpMessage
             {
                 Type = MessageType.ERR,
-                DisplayName = parts[0].Substring("ERR FROM ".Length),
-                MessageContents = parts[1]
+                DisplayName = displayName,
+                MessageContents = content
             };
         }
 
-        // REPLY OK|NOK IS <msg>
-        if (line.StartsWith("REPLY"))
+        if (line.StartsWith("REPLY", StringComparison.OrdinalIgnoreCase))
         {
-            var parts = line.Split(' ', 4);
+            var parts = line.Split(' ', 4, StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length != 4 ||
+                !parts[2].Equals("IS", StringComparison.OrdinalIgnoreCase))
+                throw new ArgumentException("Malformed REPLY");
+
             return new TcpMessage
             {
                 Type = MessageType.REPLY,
-                Result = parts[1] == "OK",//ture ak ok, inak nok
+                Result = parts[1].Equals("OK", StringComparison.OrdinalIgnoreCase),
                 MessageContents = parts[3]
             };
         }
 
-        if (line.StartsWith("BYE FROM "))
+        if (line.StartsWith("BYE FROM ", StringComparison.OrdinalIgnoreCase))
         {
             var displayName = line.Substring("BYE FROM ".Length);
             return new TcpMessage
@@ -100,4 +119,7 @@ public class TcpMessage
         _ => throw new InvalidOperationException("Unsupported message type")
     };
 }
+
+
+
 
