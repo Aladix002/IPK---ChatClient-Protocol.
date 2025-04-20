@@ -1039,6 +1039,18 @@ def udp_auth_err(tester):
 # PART 3: TCP
 
 @testcase
+def tcp_sigint(tester):
+    """Test that the program handles SIGINT correctly."""
+    tcp_auth_and_reply(tester)
+
+    # Send SIGINT signal
+    tester.send_signal(signal.SIGINT)
+
+    # Expect BYE message
+    message = tester.receive_message()
+    assert message == "BYE FROM c\r\n", "Incoming message does not match expected BYE message after SIGINT."
+
+@testcase
 def tcp_server_bye(tester):
     """Test that the client terminates correctly upon receiving BYE from the server."""
     tcp_auth_and_reply(tester)
