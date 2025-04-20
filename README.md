@@ -89,19 +89,12 @@ V tejto triede je udržovaný, nastavovaný a čítaný stav klienta.
 
 #### Udp.cs
 
-Trieda `Udp` Inicializuje triedu `UdpClient` a vytvára pomocnú triedu `UdpReciever`. Číta tu vstup užívateľa v konzole a potom na to reaguje v závislosti od spŕavnosti príkazu aj aktuálneho stavu. Na spolahlivé doručovania správ používa funkciu `SendWithConfirm()` z triedy `UdpConfirmHelper`. 
+Trieda `Udp` Inicializuje triedu `UdpClient`. Číta tu vstup užívateľa v konzole a potom na to reaguje v závislosti od spŕavnosti príkazu aj aktuálneho stavu. Na spolahlivé doručovania správ používa funkciu `SendConfirm()` z triedy `UdpConfirmHelper`. 
 
 #### UdpConfirmHelper.cs
 
 Sleduje, či bola konkrétna správa potvrdená podľa jej MessageId a má funkciu `SendConfirmIfNeeded()`,  vďaka ktorej sú správy zo servera automaticky potvrdované.
 
-#### UdpReceiver.cs
-
-Trieda prijíma správy zo servera a vypisuje informácie z nich do konzoly pre užívateľa. Rozpoznáva ich pomocou funkcie `FromBytes()` z tried pre UDP správy.
-
-#### UdpStateManager.cs
-
-V tejto triede je udržovaný, nastavovaný a čítaný stav klienta.
 
 #### UdpMessage
 
