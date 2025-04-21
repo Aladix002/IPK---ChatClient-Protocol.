@@ -22,7 +22,9 @@ class Program
 
         if (args.Length == 1 && (args[0] == "-h" || args[0] == "--help"))
         {
-            var _ = Parser.Default.ParseArguments<Arguments>(args);
+            Console.WriteLine("IPK25-CHAT client help:\n");
+            new Parser(with => with.HelpWriter = Console.Out)
+                .ParseArguments<Arguments>(new[] { "--help" });
             return 0;
         }
 
@@ -51,8 +53,6 @@ class Program
                                     Console.Error.WriteLine("ERR: Could not resolve IPv4 address.");
                                     return 1;
                                 }
-
-                                client = new Udp(parsedArgs, ipv4);
                                 break;
 
                             default:
@@ -60,7 +60,7 @@ class Program
                                 return 1;
                         }
 
-                        await client.Run(); //spustanie klienta
+                        await client!.Run(); //spustanie klienta
                         return 0;
                     }
                     catch (Exception ex)

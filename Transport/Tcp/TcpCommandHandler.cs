@@ -35,7 +35,7 @@ namespace Transport
 
                 if (tokens[0].StartsWith("/help"))
                 {
-                    Udp.HandleHelp();
+                    HandleHelp();
                     continue;
                 }
                 else if (currentState == State.start && !tokens[0].StartsWith("/auth"))
@@ -48,7 +48,7 @@ namespace Transport
                 switch (tokens[0])
                 {
                     case "/help":
-                        Udp.HandleHelp();
+                        HandleHelp();
                         break;
 
                     case "/auth" when currentState is State.start or State.auth:
@@ -122,5 +122,14 @@ namespace Transport
                 }
             }
         }
+
+            public static void HandleHelp()
+            {
+                Console.WriteLine("Available commands:");
+                Console.WriteLine("/auth <username> <secret> <displayName>");
+                Console.WriteLine("/join <channelId>");
+                Console.WriteLine("/rename <displayName>");
+                Console.WriteLine("/help");
+            }
     }
 }
