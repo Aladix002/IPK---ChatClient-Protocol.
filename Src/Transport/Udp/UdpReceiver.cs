@@ -71,6 +71,7 @@ public class UdpReceiver
                     case MessageType.BYE:
                         Console.WriteLine("Server: BYE");
                         await _udp.Stop();
+                        Environment.Exit(0);
                         break;
                     case MessageType.ERR:
                         Console.WriteLine($"ERROR FROM {msg.DisplayName}: {msg.MessageContents}");

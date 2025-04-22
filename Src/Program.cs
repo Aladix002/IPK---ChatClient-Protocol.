@@ -9,15 +9,6 @@ class Program
     {
         IChatClient? client = null;
 
-        // Ctrl+C zastavenie
-        Console.CancelKeyPress += async (sender, e) =>
-        {
-            e.Cancel = true;
-            if (client != null)
-                await client.Stop();
-            Environment.Exit(0);
-        };
-
         if (args.Length == 1 && (args[0] == "-h" || args[0] == "--help"))
         {
             Console.WriteLine("IPK25-CHAT client help:\n");
