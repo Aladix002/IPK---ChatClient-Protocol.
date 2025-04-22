@@ -38,23 +38,31 @@ namespace Transport
         //Posle BYE a zavrie socket
         public async Task Stop(Socket socket)
         {
-            if (_shutdownInitiated) return;     
+            if (_shutdownInitiated) return;
             _shutdownInitiated = true;
 
             try
             {
-                var bye = new TcpMessage
+                if (_state == State.open && _userDisplayName != null)
                 {
-                    Type = MessageType.BYE,
-                    DisplayName = _userDisplayName ?? "?"
-                };
-                var data = Encoding.ASCII.GetBytes(bye.ToTcpString());
-                await socket.SendAsync(data, SocketFlags.None); 
+                    var bye = new TcpMessage
+                    {
+                        Type = MessageType.BYE,
+                        DisplayName = _userDisplayName
+                    };
+                    var data = Encoding.ASCII.GetBytes(bye.ToTcpString());
+                    await socket.SendAsync(data, SocketFlags.None);
+                }
             }
-            catch {}
+            catch
+            {
+                // ticho ignorujeme chyby pri odosielani
+            }
 
-            socket.Close();//zavre spojenie
+            socket.Close();
+            Environment.Exit(0);
         }
+
 
         public async Task SendErrorAndExit(Socket socket, string message)
         {

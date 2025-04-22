@@ -1,7 +1,4 @@
-using System;
 using System.Net.Sockets;
-using System.Threading.Tasks;
-using Message;
 
 namespace Transport
 {
@@ -22,16 +19,23 @@ public class Tcp : IChatClient
     }
     // https://learn.microsoft.com/en-us/dotnet/api/system.net.sockets.networkstream.writeasync
     public async Task Run()
+{
+    _socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+    _socket.Connect(_args.Ip, _args.Port);
+
+    Console.CancelKeyPress += async (_, e) =>
     {
-        _socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-        _socket.Connect(_args.Ip, _args.Port);
+        e.Cancel = true;
+        await Stop();
+    };
 
-        var listen = _receiver.ListenForServerMessages(_socket); // prijem zo servera
-        var input = _commandHandler.HandleUserInput(_socket, _args); // posielanie na server
+    var listen = _receiver.ListenForServerMessages(_socket);
+    var input = _commandHandler.HandleUserInput(_socket, _args);
 
-        await Task.WhenAny(listen, input); // caka na eof alebo bye 
-        await _stateManager.Stop(_socket);
-    }
+    await Task.WhenAny(listen, input);
+    await _stateManager.Stop(_socket);
+}
+
     public Task Stop() => _stateManager.Stop(_socket); // ctrl c volanie z mainu
 }
 }
