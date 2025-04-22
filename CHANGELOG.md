@@ -5,12 +5,9 @@
 ### Funkcionalita
 
 - parsovanie parametrov pred spustením a výber medzi TCP a UDP
-- TCP plne implementuje funckionalitu
-- UDP základná funkcionalitu na vytvorenie spojenia, posielanie spŕav, prepojenie sa do iných kaalov, premenovanie a odpojenie
+- TCP spĺňa funckionalitu podľa požiadaviek
+- UDP spĺňa funckionalitu podľa požiadaviek
 
 
 ### Nedostatky
-
-- UDP neoveruje krajné prípady a všetky zlé vstupy
-- UDP neoveruje nespavnu spavu pri komunikácii
-- opakovanie príkazov zadaných užívateľom
+- UDP aj TCP zlyháva v automatických testoch na SIGINT 

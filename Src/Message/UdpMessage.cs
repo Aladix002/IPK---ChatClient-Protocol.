@@ -22,6 +22,8 @@ public class UdpMessage
     {
         MessageId = messageId;
         var buffer = new List<byte> { (byte)Type };
+
+        // 2 byty pre message id 
         buffer.AddRange(BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)messageId)));
         switch (Type)
         {
@@ -67,7 +69,7 @@ public class UdpMessage
         return buffer.ToArray();
     }
 
-    //parsing udp
+    //parsovanie spravy z bytov
     public static UdpMessage ParseUdp(ReadOnlySpan<byte> data)
     {
         if (data.Length < 3)
@@ -141,7 +143,7 @@ public class UdpMessage
         buffer.Add(0);
     }
 
-    //zapise ushort vo formate bigendian
+    //zapisuje ushort vo formate bigendian na message a ref id 
     private static byte[] ToUInt16Bytes(ushort value)
     {
         byte[] b = new byte[2];

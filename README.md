@@ -9,7 +9,7 @@ Cieľom projektu bola implementácia klientskej aplikácie, ktorá komunikuje so
 ## Ako sa pri riešení projektu využilo LLM
 Pre vypracovanie projektu som používal aj Large Language Model - ChatGPT nasledujúcimi spôsobmi:
 
-- vygenerovanie šablóny pre túto dokumentáciu, sformátovanie zdrojov a výstupov z konzoly pri testovaní
+- vygenerovanie šablóny pre túto dokumentáciu, sformátovanie použitých zdrojov do bibliografickej podoby
 - konzultácia pri návrhu tried a možnostiach .NETu pre tento projekt
 - pomoc pri reštruktualizácii kódu pre lepšiu čitateľnosť
 - tvorba Makefile
@@ -55,9 +55,9 @@ UDP je protokol, ktorý nenadväzuje spojenie, takže sa správy pošlu rýchlej
 ## Implementácia aplikácie
 
 #### Program.cs
-Hlavný vstup programu, ktorý spracuje počiatočné argumenty a podľa prepínača -t určí, či sa vytvorí TCP alebo UDP varianta klienta. Potom sa to spustí cez funkciu `Run` a pre ukončenie voa funckiu `DisconnectAsync`.
+Hlavný vstup programu, ktorý spracuje počiatočné argumenty a podľa prepínača -t určí, či sa vytvorí TCP alebo UDP varianta klienta. Potom sa to spustí cez funkciu `Run` a pre ukončenie volá funckiu `Stop`.
 
-Argumenty boli načítané do public record `Arguments` s predvolenými hodnotami pre nepovinné parametre. 
+Argumenty sú načítané do public record `Arguments` s predvolenými hodnotami pre nepovinné parametre. 
 Možné parametre sú:
 
 - `-t` typ protokolu (tcp alebo udp)
@@ -73,45 +73,29 @@ Možné parametre sú:
 Trieda `Tcp` inicializuje Tcp spojenie so serverom cez `Stream Socket` a vytvára pomocné triedy `TcpCommandHandler` a `TcpReciever`.
 
 #### TcpCommandHandler.cs
-Trieda `TcpCommandHandler` využíva funckiu `HandleUserInput`, v ktorej číta vstup užívateľa v konzole a potom na to reaguje v závislosti od spŕavnosti príkazu aj aktuálneho stavu. Následne vytvorí `TcpMessage` poďla zadaného príkazu alebo textu (MSG) a potom to pošle cez NetworkStream.
+Trieda `TcpCommandHandler` využíva funckiu `HandleUserInput`, v ktorej číta vstup užívateľa v konzole a potom na to reaguje v závislosti od spŕavnosti príkazu aj aktuálneho stavu. Následne vytvorí `TcpMessage` poďla zadaného príkazu alebo textu (MSG) a potom to pošle.
 
 #### TcpReceiver.cs
-Trieda prijíma správy zo servera a vypisuje informácie z nich do konzoly pre užívateľa. Rozpoznáva ich pomocou funkcie `ParseTcp()` z treidy `TcpMessage`.
+Trieda prijíma správy zo servera vo funkcii `ListenForMessages()` a vypisuje informácie z nich do konzoly pre užívateľa. Rozpoznáva ich pomocou funkcie `ParseTcp()` z treidy `TcpMessage`.
 
 #### TcpMessage.cs
 Táto trieda slúži na reprezenaciu všetkých možných správ a na základe typu správy ju potom vo funkcii `ParseTcp()` parsuje alebo vo funkcii `ToTcpString()` konštruuje.
 
-#### TcpStateManager.cs
-
-V tejto triede je udržovaný, nastavovaný a čítaný stav klienta.
-
 ### UDP Varianta
 
 #### Udp.cs
+Trieda `Udp` Inicializuje triedu `UdpClient`. Rovnako ako u TCP má 2 pomocné triedy na spracovanie vstupu od užívateľa - `UdpCommandHandler` a správ od serveru - `UdpReceiver`. 
 
-Trieda `Udp` Inicializuje triedu `UdpClient`. Číta tu vstup užívateľa v konzole a potom na to reaguje v závislosti od spŕavnosti príkazu aj aktuálneho stavu. Na spolahlivé doručovania správ používa funkciu `SendConfirm()` z triedy `UdpConfirmHelper`. 
+#### UdpCommandHandler.cs
+Trieda využíva funckiu `HandleUserInput`, v ktorej využíva samostatnú funkciu, ktorá rieši autentikáciu - `HandleAuth()` a funckiu, ktorá spracúva príkazy v Open stave podobne ako u TCP.
 
-#### UdpConfirmHelper.cs
-
-Sleduje, či bola konkrétna správa potvrdená podľa jej MessageId a má funkciu `SendConfirmIfNeeded()`,  vďaka ktorej sú správy zo servera automaticky potvrdované.
+#### UdpReceiver.cs
+Trieda prijíma správy zo servera vo funkcii `ListenForMessages()` a vypisuje informácie z nich do konzoly pre užívateľa. Rozpoznáva ich pomocou funkcie `ParseUdp()` z treidy `UdpMessage`.
 
 
 #### UdpMessage
+Táto trieda slúži na reprezenaciu všetkých možných správ a na základe typu správy ju potom vo funkcii `ParseUdp()` parsuje alebo vo funkcii `ToBytes()` konštruuje.
 
-Priečinok UdpMessage obsahuje triedy pre každú UDP spŕavu zvlášť
-- `Auth`  
-- `Join`  
-- `Msg`  
-- `Reply`  
-- `Err`  
-- `Confirm`  
-- `Bye`  
-- `Ping`  
-
-Triedy majú metódy:
-- `ToBytes` pre prevod na bytové pole pri konštrukcii správy
-- `FromBytes` pre parsovanie správy zo serveru.
-- `Auth` validuje vstupné reťazce cez regex
 
 Bližšie informácie o implementácii možno pozrieť priamo v spomínaných súboroch aj s komentármi.
 
@@ -119,7 +103,6 @@ Bližšie informácie o implementácii možno pozrieť priamo v spomínaných s�
 
 #### Čo sa testovalo
 
-- Správna inicializácia klienta cez CLI
 - Odozva na príkazy užívateľa
 - Správy na výstupe podľa špecifikácie
 - Odchyt chýb a výpis 
@@ -135,6 +118,7 @@ Bližšie informácie o implementácii možno pozrieť priamo v spomínaných s�
 - Referenčný server `anton5.fit.vutbr.cz`
 - Testovanie rôznych príkazov a výstupov na CLI
 - Sledovanie komunikácie v aplikácii Wireshark
+- Automatické, verejne dostupné študentské testy 
 
 ### Testovanie TCP Varianty
 
@@ -210,7 +194,12 @@ Ukončenie Ctrl + C pošle BYE a skončí aplikáciu.
 
 ### Testovanie UDP Varianty
 
-V UDP variante bola implementovaná len základná funkcionalita a chybové stavy, preto prikladám 
+#### Automatické testy
+
+![udp automatic](Doc/udpaut.png)
+
+V UDP bol problém s testom poslania Bye a ukončenia aplikácie. Keď som to ale testoval lokálne, spŕavalo sa to podľa očakávaní.
+
 #### Výstupy z konzoly a Wiresharku
 
 Posielanie správy pred autentikáciou v konzole:
@@ -263,14 +252,6 @@ aladix@aladix-Aspire:~/Desktop/FIT/ipk/ipk25/IPK25-CHAT$
 ```
 
 ![UDP bye](Doc/udpbye.png)
-
-
-## Známe obmedzenia a nedostatky
-
-- v UDP len základné fungovanie
-- v UDP opakujúce sa spŕavy s príkazmi
-- nedostatočne overené rôzne prípady u UDP 
-
 
 ---
 

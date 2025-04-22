@@ -44,10 +44,10 @@ public class Udp : IChatClient
 
         Console.CancelKeyPress += (_, e) => { e.Cancel = true; _ = Stop(); };
 
-        _ = Task.Run(_receiver.ListenForServerMessagesAsync);
+        _ = Task.Run(_receiver.ListenForMessages);
         _ = Task.Run(RetryUnconfirmedMessagesAsync);
 
-        await _commandHandler.CommandLoop();
+        await _commandHandler.HandleUserInput();
         Cleanup();
     }
 
@@ -72,7 +72,7 @@ public class Udp : IChatClient
         return Task.CompletedTask;
     }
 
-    // kontrola casu a retry nedorucenych sprav
+    // kontrola cakajucichc sprav a retry nedorucenych sprav
     private async Task RetryUnconfirmedMessagesAsync()
     {
         try
@@ -103,7 +103,7 @@ public class Udp : IChatClient
         catch (TaskCanceledException) { }
     }
 
-     //kontrola confirm, retry a timeout
+     // posle spravu a ulozi ju pre retry
     public void SendReliable(byte[] datagram)
     {
         ushort messageId = BinaryPrimitives.ReadUInt16BigEndian(datagram.AsSpan(1, 2));
@@ -128,6 +128,7 @@ public class Udp : IChatClient
     public IPEndPoint ServerEndpoint => _serverEp!;
     public void SetDynamicEndpoint(IPEndPoint ep) => _dynamicEp = ep;
 
+    //cistenie zdrojov po konci        
     private void Cleanup()
     {
         _cts.Cancel();

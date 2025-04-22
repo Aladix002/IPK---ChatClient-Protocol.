@@ -14,7 +14,8 @@ public class TcpReceiver
         _tcp = tcp;
     }
 
-    public async Task ListenForServerMessages()
+    //pocuvanie servera
+    public async Task ListenForMessages()
     {
         var buffer = new byte[2048];//prijimaci buffer data
 	    var sb = new StringBuilder();//medzi‑buffer na cast ramca
@@ -28,6 +29,7 @@ public class TcpReceiver
             var data = sb.ToString();
 
             int idx;
+            // caka na cele ramce
             while ((idx = data.IndexOf("\r\n", StringComparison.Ordinal)) != -1)
             {
                 var line = data[..idx];//kompletna sprava
@@ -40,7 +42,7 @@ public class TcpReceiver
                 }
                 catch
                 {
-                    Console.WriteLine("ERROR: Malformed message received.");
+                    Console.WriteLine("ERROR: Malformed message received."); //sprava sa nesparsovala spravne - malformed
                     await SendErrorAndExit("Malformed message received");
                     return;
                 }
@@ -71,7 +73,7 @@ public class TcpReceiver
             }
 
             sb.Clear();
-            sb.Append(data);//nekompletny frame do dalsieho cyklu//nekompletny frame do dalsieho cyklu
+            sb.Append(data);//nekompletny frame do dalsieho cyklu
         }
     }
 

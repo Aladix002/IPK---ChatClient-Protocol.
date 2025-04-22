@@ -17,7 +17,7 @@ class Program
             return 0;
         }
 
-        //parsuje a spusti klienta podla argumentov
+        //parsuje args a spusti klienta podla nich
         return await new Parser(with => with.HelpWriter = Console.Out)
             .ParseArguments<Arguments>(args)
             .MapResult(
@@ -32,6 +32,7 @@ class Program
                                 break;
 
                             case "udp":
+                                //hlada ipv4 pre hostname
                                 var hostEntry = await Dns.GetHostEntryAsync(parsedArgs.Ip);
                                 var ipv4 = Array.Find(
                                     hostEntry.AddressList,

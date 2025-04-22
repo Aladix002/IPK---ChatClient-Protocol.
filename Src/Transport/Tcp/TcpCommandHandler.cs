@@ -30,7 +30,7 @@ public class TcpCommandHandler
             if (tokens.Length == 0) continue;
 
             using var stream = new NetworkStream(_tcp.Socket, ownsSocket: false);
-
+            // rozlisovanie commandov podla kt. sa posle sprava u z 1 tokenu
             switch (tokens[0])
             {
                 case "/help":
@@ -92,6 +92,7 @@ public class TcpCommandHandler
                     }
                     else if (_tcp.CurrentState == State.open)
                     {
+                        //obycajne spravy ak neni prve /
                         var msg = new TcpMessage
                         {
                             Type = MessageType.MSG,

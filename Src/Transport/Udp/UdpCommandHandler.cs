@@ -11,7 +11,8 @@ public class UdpCommandHandler
         _udp = udp;
     }
 
-    public async Task CommandLoop()
+    //rozdelenie moznosti podla aktualneho stavu
+    public async Task HandleUserInput()
     {
         while (!_udp.CancellationToken.IsCancellationRequested)
         {
@@ -36,6 +37,7 @@ public class UdpCommandHandler
         }
     }
 
+    //vsetky mozne stavy v open ako u tcpcommandhandleru
     private Task HandleAuth(string line)
     {
         var p = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
@@ -108,10 +110,6 @@ public class UdpCommandHandler
                 {
                     TcpCommandHandler.HandleHelp();
                 }
-            }
-            else if (commandName == "/bye")
-            {
-                _ = _udp.Stop();
             }
             else
             {

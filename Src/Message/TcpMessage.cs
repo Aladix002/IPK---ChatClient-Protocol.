@@ -10,7 +10,7 @@ public class TcpMessage
     public string? MessageContents { get; init; }   
     public bool Result { get; init; }               
 
-    // textova reprezentacia protokolu na TcpMessage
+    // textova reprezentacia protokolu na TcpMessage, splituje spravy na casti podla toho ktory typ ju ma ako dostat  
     public static TcpMessage ParseTcp(string line)
     {
         if (line.StartsWith("AUTH", StringComparison.OrdinalIgnoreCase))
@@ -106,6 +106,7 @@ public class TcpMessage
 
         throw new ArgumentException("Unsupported TCP message format.");
     }
+    //vytvori tcp string zo spravy, opacny proces horneho
 
     // https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/operators/switch-expression
     public string ToTcpString() => Type switch

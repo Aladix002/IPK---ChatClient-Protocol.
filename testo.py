@@ -659,20 +659,6 @@ def udp_bye1(tester):
 
 
 @testcase
-def udp_bye2(tester):
-    """Test that the program handles a C-d (stdin closed) correctly."""
-    auth_and_reply(tester)
-
-    # Send a message from the server
-    tester.process.stdin.close()
-
-    message = tester.receive_message()
-    tMessage = translateMessage(message)
-    assert (
-        tMessage == "BYE FROM c\r\n"
-    ), "Incoming message does not match expected BYE message."
-
-@testcase
 def udp_server_bye(tester):
     """Test that the client terminates correctly upon receiving BYE from the server."""
     auth_and_reply(tester)

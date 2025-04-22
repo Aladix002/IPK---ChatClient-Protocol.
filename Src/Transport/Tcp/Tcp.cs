@@ -21,6 +21,7 @@ public class Tcp : IChatClient
         _receiver = new TcpReceiver(this);
     }
 
+    // hlavna metoda spustenie z mainu
     // https://learn.microsoft.com/en-us/dotnet/api/system.net.sockets.networkstream.writeasync
     public async Task Run()
     {
@@ -33,7 +34,7 @@ public class Tcp : IChatClient
             await Stop();
         };
 
-        var receiver = _receiver.ListenForServerMessages();
+        var receiver = _receiver.ListenForMessages();
         var input = _commandHandler.HandleUserInput();
 
         await Task.WhenAny(receiver, input);

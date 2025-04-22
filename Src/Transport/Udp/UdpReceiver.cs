@@ -12,12 +12,13 @@ public class UdpReceiver
         _udp = udp;
     }
 
-    public async Task ListenForServerMessagesAsync()
+    public async Task ListenForMessages()
     {
         try
         {
             while (!_udp.CancellationToken.IsCancellationRequested)
             {
+                // prijatie udp datagramu
                 var result = await _udp.Client.ReceiveAsync(_udp.CancellationToken);
                 var data = result.Buffer;
                 var sender = result.RemoteEndPoint;
@@ -32,7 +33,7 @@ public class UdpReceiver
                 }
                 catch
                 {
-                    var confirm = new byte[] { 0x00, data[1], data[2] };
+                    var confirm = new byte[] { 0x00, data[1], data[2] }; //spravu neslo sparsovat, posle sa error - malformed
                     _udp.Client.Send(confirm, 3, sender);
 
                     Console.WriteLine("ERROR: Invalid message format");
@@ -58,8 +59,9 @@ public class UdpReceiver
                 _udp.Client.Send(confirmMsg, 3, sender);
 
                 if (!_udp.SeenIds.Add(msg.MessageId))
-                    continue;
+                    continue; //ignoruje duplikatne
 
+                // spracovanie spravy podla typu
                 switch (msg.Type)
                 {
                     case MessageType.REPLY:
@@ -118,7 +120,7 @@ public class UdpReceiver
         {
             if (msg.Result == true)
             {
-                _udp.SetDynamicEndpoint(sender);
+                _udp.SetDynamicEndpoint(sender); // nasavi novy port po reply pri auth
                 _udp.SetState(State.open);
             }
             else
