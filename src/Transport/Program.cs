@@ -53,6 +53,8 @@ class Program
                                     Console.Error.WriteLine("ERR: Could not resolve IPv4 address.");
                                     return 1;
                                 }
+
+                                client = new Udp(parsedArgs, ipv4);
                                 break;
 
                             default:
@@ -60,7 +62,7 @@ class Program
                                 return 1;
                         }
 
-                        await client!.Run(); //spustanie klienta
+                        await client.Run(); //spustanie klienta
                         return 0;
                     }
                     catch (Exception ex)
