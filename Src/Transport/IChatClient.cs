@@ -1,5 +1,3 @@
-using System.Threading.Tasks;
-
 namespace Transport
 {
 public interface IChatClient

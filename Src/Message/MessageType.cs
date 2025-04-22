@@ -8,4 +8,4 @@ public enum MessageType : byte
     PING = 0xFD,
     ERR = 0xFE,
     BYE = 0xFF
-}
+}   
